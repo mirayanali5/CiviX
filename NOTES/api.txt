@@ -1,0 +1,2 @@
+Google Maps android API key : AIzaSyByUOF402-4rwHUK17gC2kqlAW3BOIQDbo
+Gemini : AIzaSyBSoPWeZVXJ-H7cx26xvWdu-9OcDkGmpWYs

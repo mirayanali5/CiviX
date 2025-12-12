@@ -1,0 +1,23 @@
+GHMC Sanitation department keywords:
+
+garbage, dustbin, trash, bins, smell, dumping, waste, debris, cleaning, sweep, sanitation, refuse, ghastly, overflowing, Swachh Bharat, cleaning staff.
+
+GHMC Road and Engineering department keywords:
+
+road, pothole, street, damaged, construction, repair, cracking, footpath, pavement, resurface, speed breaker, culvert, manhole, dig.
+
+Hyderabad Metropolitan Water Supply and Sewerage Board (HMWSSB) department keywords:
+
+water, leak, drainage, sewer, overflow, pipeline, contamination, sewage, dirty water, tap, borewell, pipe burst, stagnation.
+
+Telangana State Southern Power Distribution Company Limited (TSSPDCL) department keywords:
+
+light, street light, pole, transformer, electric, cable, wiring, spark, shock, power cut, fuse, bulb, dark, meter.
+
+GHMC Town Planning department keywords:
+
+illegal construction, encroachment, demolition, unauthorized, building, structure, setback, boundary, commercial misuse, banner, hoarding, advertisement.
+
+GHMC Public Health / Entomology department keywords:
+
+mosquito, dengue, malaria, fever, stray dog, rat, pest, insect, fogging, vaccination, animal cruelty, epidemic.
