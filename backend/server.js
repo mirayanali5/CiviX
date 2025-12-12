@@ -57,4 +57,6 @@ app.listen(PORT, () => {
   if (jwtSecret) {
     console.log(`   Using: ${process.env.JWT_SECRET ? 'JWT_SECRET' : 'SUPABASE_JWT_SECRET'}`);
   }
+  console.log(`\n✅ Server is ready to accept connections!`);
+  console.log(`   Health check: http://localhost:${PORT}/api/health\n`);
 });

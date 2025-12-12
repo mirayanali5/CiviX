@@ -40,22 +40,32 @@ async function uploadToSupabase(file, bucketName) {
 // Get authority dashboard stats
 router.get('/dashboard', requireAuthority, async (req, res) => {
   try {
-    // Note: Your profiles table doesn't have department column
-    // You may need to add it or query from a separate table
-    // For now, assuming department is stored in JWT token or profiles
-    const department = req.user.department;
     const userId = req.user.id;
+
+    // Fetch department from profiles table
+    const profileResult = await pool.query(
+      'SELECT department FROM profiles WHERE id = $1::uuid',
+      [userId]
+    );
+
+    if (profileResult.rows.length === 0 || !profileResult.rows[0].department) {
+      return res.status(400).json({ error: 'Department not assigned to this authority user' });
+    }
+
+    const department = profileResult.rows[0].department;
 
     const statsResult = await pool.query(
       `SELECT 
-        COUNT(*) FILTER (WHERE status = 'open') as open,
-        COUNT(*) FILTER (WHERE status = 'open') as in_progress, -- Your schema only has 'open' and 'resolved'
-        COUNT(*) FILTER (WHERE status = 'resolved') as resolved,
+        COUNT(*) FILTER (WHERE LOWER(status) = 'open') as open,
+        COUNT(*) FILTER (WHERE LOWER(status) = 'open') as in_progress, -- Your schema only has 'open' and 'resolved'
+        COUNT(*) FILTER (WHERE LOWER(status) = 'resolved') as resolved,
         COUNT(*) as total
        FROM complaints
        WHERE department = $1`,
       [department]
     );
+
+    console.log('Dashboard stats for department:', department, statsResult.rows[0]);
 
     res.json({
       stats: statsResult.rows[0],
@@ -70,7 +80,19 @@ router.get('/dashboard', requireAuthority, async (req, res) => {
 // Get department complaints
 router.get('/complaints', requireAuthority, async (req, res) => {
   try {
-    const department = req.user.department;
+    const userId = req.user.id;
+
+    // Fetch department from profiles table
+    const profileResult = await pool.query(
+      'SELECT department FROM profiles WHERE id = $1::uuid',
+      [userId]
+    );
+
+    if (profileResult.rows.length === 0 || !profileResult.rows[0].department) {
+      return res.status(400).json({ error: 'Department not assigned to this authority user' });
+    }
+
+    const department = profileResult.rows[0].department;
     const { status, limit = 50, offset = 0 } = req.query;
 
     let query = `
@@ -87,17 +109,28 @@ router.get('/complaints', requireAuthority, async (req, res) => {
     let paramIndex = 2;
 
     if (status) {
-      query += ` AND c.status = $${paramIndex}`;
-      params.push(status);
+      // Normalize status to lowercase to match schema
+      const normalizedStatus = status.toLowerCase();
+      query += ` AND LOWER(c.status) = $${paramIndex}`;
+      params.push(normalizedStatus);
       paramIndex++;
     }
 
-    query += ` GROUP BY c.id, p.full_name, p.account_type
+    // Fix GROUP BY to include all selected columns
+    query += ` GROUP BY c.id, c.user_id, c.guest_id, c.description, c.transcript, c.translated_text, 
+               c.image_url, c.audio_url, c.department, c.tags, c.latitude, c.longitude, 
+               c.status, c.report_count, c.created_at, c.updated_at, c.is_duplicate, 
+               c.parent_complaint_id, p.full_name, p.account_type
                ORDER BY upvote_count DESC, c.created_at DESC
                LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
     params.push(parseInt(limit), parseInt(offset));
 
+    console.log('Fetching complaints for department:', department);
+    console.log('Query params:', params);
+
     const result = await pool.query(query, params);
+
+    console.log(`Found ${result.rows.length} complaints for department ${department}`);
 
     res.json({
       complaints: result.rows,
@@ -105,7 +138,11 @@ router.get('/complaints', requireAuthority, async (req, res) => {
     });
   } catch (error) {
     console.error('Get department complaints error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      details: error.message 
+    });
   }
 });
 
@@ -113,7 +150,19 @@ router.get('/complaints', requireAuthority, async (req, res) => {
 router.get('/complaints/:id', requireAuthority, async (req, res) => {
   try {
     const { id } = req.params;
-    const department = req.user.department;
+    const userId = req.user.id;
+
+    // Fetch department from profiles table
+    const profileResult = await pool.query(
+      'SELECT department FROM profiles WHERE id = $1::uuid',
+      [userId]
+    );
+
+    if (profileResult.rows.length === 0 || !profileResult.rows[0].department) {
+      return res.status(400).json({ error: 'Department not assigned to this authority user' });
+    }
+
+    const department = profileResult.rows[0].department;
 
     const result = await pool.query(
       `SELECT c.*, 
@@ -124,9 +173,15 @@ router.get('/complaints/:id', requireAuthority, async (req, res) => {
        LEFT JOIN upvotes u ON c.id = u.complaint_id
        LEFT JOIN profiles p ON c.user_id = p.id
        WHERE c.id = $1::uuid AND c.department = $2
-       GROUP BY c.id, p.full_name, p.account_type`,
+       GROUP BY c.id, c.user_id, c.guest_id, c.description, c.transcript, c.translated_text, 
+                c.image_url, c.audio_url, c.department, c.tags, c.latitude, c.longitude, 
+                c.status, c.report_count, c.created_at, c.updated_at, c.is_duplicate, 
+                c.parent_complaint_id, p.full_name, p.account_type`,
       [id, department]
     );
+
+    console.log('Get complaint for resolution:', id, 'department:', department);
+    console.log('Complaint found:', result.rows.length > 0);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Complaint not found or not in your department' });
@@ -144,7 +199,19 @@ router.patch('/complaints/:id/status', requireAuthority, async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
-    const department = req.user.department;
+    const userId = req.user.id;
+
+    // Fetch department from profiles table
+    const profileResult = await pool.query(
+      'SELECT department FROM profiles WHERE id = $1::uuid',
+      [userId]
+    );
+
+    if (profileResult.rows.length === 0 || !profileResult.rows[0].department) {
+      return res.status(400).json({ error: 'Department not assigned to this authority user' });
+    }
+
+    const department = profileResult.rows[0].department;
 
     // Convert status to lowercase to match your schema
     const normalizedStatus = status.toLowerCase();
@@ -178,7 +245,18 @@ router.post('/complaints/:id/resolve', requireAuthority, upload.array('photos', 
     const { notes } = req.body;
     const photos = req.files || [];
     const authorityUserId = req.user.id;
-    const department = req.user.department;
+
+    // Fetch department from profiles table
+    const profileResult = await pool.query(
+      'SELECT department FROM profiles WHERE id = $1::uuid',
+      [authorityUserId]
+    );
+
+    if (profileResult.rows.length === 0 || !profileResult.rows[0].department) {
+      return res.status(400).json({ error: 'Department not assigned to this authority user' });
+    }
+
+    const department = profileResult.rows[0].department;
 
     if (photos.length === 0) {
       return res.status(400).json({ error: 'At least one resolution photo is required' });
@@ -186,9 +264,12 @@ router.post('/complaints/:id/resolve', requireAuthority, upload.array('photos', 
 
     // Verify complaint belongs to authority's department
     const complaintResult = await pool.query(
-      'SELECT * FROM complaints WHERE id = $1 AND department = $2',
+      'SELECT * FROM complaints WHERE id = $1::uuid AND department = $2',
       [id, department]
     );
+
+    console.log('Resolving complaint:', id, 'for department:', department);
+    console.log('Complaint found:', complaintResult.rows.length > 0);
 
     if (complaintResult.rows.length === 0) {
       return res.status(404).json({ error: 'Complaint not found or not in your department' });
@@ -210,10 +291,11 @@ router.post('/complaints/:id/resolve', requireAuthority, upload.array('photos', 
     }
 
     // Create resolution record with images array (matching your schema)
+    // Note: authority_id is text in schema, so convert UUID to string
     await pool.query(
       `INSERT INTO resolutions (complaint_id, authority_id, images, notes)
-       VALUES ($1::uuid, $2::uuid, $3::text[], $4)`,
-      [id, authorityUserId, photoUrls, notes || '']
+       VALUES ($1::uuid, $2::text, $3::text[], $4)`,
+      [id, authorityUserId.toString(), photoUrls, notes || '']
     );
 
     // Update complaint status
@@ -246,10 +328,10 @@ router.get('/history', requireAuthority, async (req, res) => {
         c.created_at as complaint_created_at
        FROM resolutions r
        JOIN complaints c ON r.complaint_id = c.id
-       WHERE r.authority_id = $1::uuid
+       WHERE r.authority_id = $1::text
        ORDER BY r.resolved_at DESC
        LIMIT $2 OFFSET $3`,
-      [authorityUserId, parseInt(limit), parseInt(offset)]
+      [authorityUserId.toString(), parseInt(limit), parseInt(offset)]
     );
 
     res.json({

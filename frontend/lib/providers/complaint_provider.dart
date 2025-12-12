@@ -27,10 +27,18 @@ class ComplaintProvider with ChangeNotifier {
       );
 
       if (response.statusCode == 200) {
-        _complaints = List<Map<String, dynamic>>.from(response.data['complaints']);
+        final data = response.data;
+        if (data != null && data['complaints'] != null) {
+          _complaints = List<Map<String, dynamic>>.from(data['complaints']);
+        } else {
+          _complaints = [];
+        }
+      } else {
+        _complaints = [];
       }
     } catch (e) {
       print('Fetch complaints error: $e');
+      _complaints = [];
     }
 
     _isLoading = false;

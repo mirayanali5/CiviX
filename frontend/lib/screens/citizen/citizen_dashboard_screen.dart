@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/complaint_provider.dart';
 import '../../services/api_service.dart';
+import '../../widgets/bottom_navigation.dart';
 import 'lodge_complaint_screen.dart';
 import 'complaint_details_screen.dart';
 import 'citizen_map_screen.dart';
@@ -20,6 +21,7 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen> {
   Map<String, dynamic>? _stats;
   final _searchController = TextEditingController();
   String _searchQuery = '';
+  int _currentNavIndex = 0;
 
   @override
   void initState() {
@@ -43,6 +45,42 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen> {
     await complaintProvider.fetchComplaints();
   }
 
+  void _onNavTap(int index) {
+    setState(() {
+      _currentNavIndex = index;
+    });
+
+    switch (index) {
+      case 0:
+        // Dashboard - already here
+        break;
+      case 1:
+        // New Report
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const LodgeComplaintScreen()),
+        ).then((_) {
+          // Refresh dashboard when returning
+          _loadDashboard();
+        });
+        break;
+      case 2:
+        // History - navigate to profile/history
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const CitizenProfileScreen()),
+        );
+        break;
+      case 3:
+        // Settings - navigate to profile
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const CitizenProfileScreen()),
+        );
+        break;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -55,15 +93,6 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const CitizenMapScreen()),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.person),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const CitizenProfileScreen()),
               );
             },
           ),
@@ -317,11 +346,11 @@ class _ComplaintCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 8),
-              if (complaint['photo_url'] != null)
+              if (complaint['image_url'] != null || complaint['photo_url'] != null)
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
                   child: Image.network(
-                    complaint['photo_url'],
+                    complaint['image_url'] ?? complaint['photo_url'],
                     height: 150,
                     width: double.infinity,
                     fit: BoxFit.cover,
@@ -358,14 +387,22 @@ class _ComplaintCard extends StatelessWidget {
                   const Spacer(),
                   TextButton.icon(
                     onPressed: () {
-                      MapUtils.openGoogleMaps(
-                        complaint['gps_lat'],
-                        complaint['gps_long'],
-                      );
+                      final lat = complaint['latitude'] ?? complaint['gps_lat'];
+                      final lon = complaint['longitude'] ?? complaint['gps_long'];
+                      if (lat != null && lon != null) {
+                        MapUtils.openGoogleMaps(lat, lon);
+                      }
                     },
                     icon: const Icon(Icons.location_on, size: 16),
                     label: Text(
-                      '${complaint['gps_lat'].toStringAsFixed(4)}, ${complaint['gps_long'].toStringAsFixed(4)}',
+                      () {
+                        final lat = complaint['latitude'] ?? complaint['gps_lat'];
+                        final lon = complaint['longitude'] ?? complaint['gps_long'];
+                        if (lat != null && lon != null) {
+                          return '${(lat as num).toDouble().toStringAsFixed(4)}, ${(lon as num).toDouble().toStringAsFixed(4)}';
+                        }
+                        return 'Location not available';
+                      }(),
                       style: const TextStyle(fontSize: 12),
                     ),
                   ),

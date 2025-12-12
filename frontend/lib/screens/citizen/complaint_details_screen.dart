@@ -130,14 +130,25 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
                           leading: const Icon(Icons.location_on),
                           title: const Text('Location'),
                           subtitle: Text(
-                            '${complaint['gps_lat']}, ${complaint['gps_long']}',
+                            () {
+                              final lat = complaint['latitude'] ?? complaint['gps_lat'];
+                              final lon = complaint['longitude'] ?? complaint['gps_long'];
+                              if (lat != null && lon != null) {
+                                return '${(lat as num).toDouble().toStringAsFixed(6)}, ${(lon as num).toDouble().toStringAsFixed(6)}';
+                              }
+                              return 'Location not available';
+                            }(),
                           ),
                           trailing: const Icon(Icons.arrow_forward_ios),
                           onTap: () {
-                            MapUtils.openGoogleMaps(
-                              complaint['gps_lat'],
-                              complaint['gps_long'],
-                            );
+                            final lat = complaint['latitude'] ?? complaint['gps_lat'];
+                            final lon = complaint['longitude'] ?? complaint['gps_long'];
+                            if (lat != null && lon != null) {
+                              MapUtils.openGoogleMaps(
+                                (lat as num).toDouble(),
+                                (lon as num).toDouble(),
+                              );
+                            }
                           },
                         ),
                       ),

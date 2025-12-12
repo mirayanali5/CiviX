@@ -5,7 +5,7 @@ const { v4: uuidv4 } = require('uuid');
 const pool = require('../config/database');
 const supabase = require('../config/supabase');
 const { authenticateToken } = require('../middleware/auth');
-const { classifyDepartment } = require('../utils/aiClassification');
+const { classifyDepartment, generateAutoTags } = require('../utils/aiClassification');
 const { checkDuplicate, autoUpvote } = require('../utils/duplicateDetection');
 const { processAudio } = require('../utils/audioProcessing');
 
@@ -46,11 +46,15 @@ async function uploadToSupabase(file, bucketName) {
   return urlData.publicUrl;
 }
 
-// Create complaint
-router.post('/', authenticateToken, upload.fields([
+// Create complaint - allow guest complaints (optional auth)
+router.post('/', upload.fields([
   { name: 'photo', maxCount: 1 },
   { name: 'audio', maxCount: 1 }
-]), async (req, res) => {
+]), async (req, res, next) => {
+  // Use authenticateToken middleware which allows null users (guest complaints)
+  const { authenticateToken } = require('../middleware/auth');
+  authenticateToken(req, res, next);
+}, async (req, res) => {
   try {
     const { description, tags, gps_lat, gps_long } = req.body;
     const photo = req.files?.photo?.[0];
@@ -79,16 +83,36 @@ router.post('/', authenticateToken, upload.fields([
 
     if (audio) {
       try {
+        console.log('Processing audio file:', {
+          size: audio.buffer.length,
+          mimetype: audio.mimetype,
+          originalname: audio.originalname
+        });
+        
         const audioResult = await processAudio(audio.buffer);
         rawTranscript = audioResult.rawTranscript;
         translatedTranscript = audioResult.translatedTranscript;
         
-        if (!finalDescription) {
+        if (!finalDescription && translatedTranscript) {
           finalDescription = translatedTranscript;
         }
       } catch (error) {
         console.error('Audio processing error:', error);
-        return res.status(400).json({ error: 'Failed to process audio' });
+        console.error('Error details:', {
+          message: error.message,
+          code: error.code,
+          stack: error.stack
+        });
+        // Don't fail the entire request if audio processing fails
+        // Just log and continue without transcript
+        console.warn('Continuing without audio transcript due to error:', error.message);
+        // If no description provided and audio failed, return error
+        if (!finalDescription || finalDescription.trim() === '') {
+          return res.status(400).json({ 
+            error: 'Audio processing failed. Please provide a text description or try again.',
+            details: error.message 
+          });
+        }
       }
     }
 
@@ -163,8 +187,14 @@ router.post('/', authenticateToken, upload.fields([
     const userId = req.user ? req.user.id : null;
     const guestId = req.user ? null : `guest_${uuidv4()}`;
 
-    // Parse tags
-    const tagsArray = tags ? (Array.isArray(tags) ? tags : tags.split(',').map(t => t.trim())) : [];
+    // Auto-generate tags based on department and description
+    const autoTags = generateAutoTags(finalDescription, classification.department);
+    
+    // Parse user-provided tags (if any)
+    const userTags = tags ? (Array.isArray(tags) ? tags : tags.split(',').map(t => t.trim()).filter(t => t)) : [];
+    
+    // Combine auto-generated tags with user tags, removing duplicates
+    const tagsArray = [...new Set([...autoTags, ...userTags])];
 
     // Insert complaint - match your Supabase schema
     const insertResult = await pool.query(
@@ -226,6 +256,7 @@ router.get('/', authenticateToken, async (req, res) => {
     const params = [userId || null];
     let paramIndex = 2;
 
+    // Only filter by status if explicitly provided, otherwise show all
     if (status) {
       query += ` AND c.status = $${paramIndex}`;
       params.push(status);
@@ -239,13 +270,13 @@ router.get('/', authenticateToken, async (req, res) => {
     }
 
     if (search) {
-      query += ` AND (c.transcript ILIKE $${paramIndex} OR c.department ILIKE $${paramIndex})`;
+      query += ` AND (c.description ILIKE $${paramIndex} OR c.transcript ILIKE $${paramIndex} OR c.department ILIKE $${paramIndex})`;
       params.push(`%${search}%`);
       paramIndex++;
     }
 
-    query += ` GROUP BY c.id, u2.name, u2.account_type
-               ORDER BY upvote_count DESC, c.created_at DESC
+    query += ` GROUP BY c.id, p.full_name, p.account_type
+               ORDER BY c.created_at DESC, upvote_count DESC
                LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
     params.push(parseInt(limit), parseInt(offset));
 

@@ -18,6 +18,7 @@ const optionalEnvVars = {
   'GOOGLE_PRIVATE_KEY': 'Audio transcription will be disabled (if not using GOOGLE_STT_KEY)',
   'GEMINI_KEY': 'Department classification will use keyword-only mode',
   'GEMINI_API_KEY': 'Department classification will use keyword-only mode (alternative)',
+  'GOOGLE_MAPS': 'Google Maps API key for map features',
 };
 
 function validateEnvironment() {

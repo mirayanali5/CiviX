@@ -4,9 +4,11 @@ import 'package:image_picker/image_picker.dart';
 import 'package:record/record.dart';
 import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:path_provider/path_provider.dart';
 import '../../services/api_service.dart';
 import '../../utils/location_service.dart';
 import '../../providers/complaint_provider.dart';
+import '../../widgets/complaint_success_dialog.dart';
 import 'citizen_dashboard_screen.dart';
 
 class LodgeComplaintScreen extends StatefulWidget {
@@ -156,18 +158,41 @@ class _LodgeComplaintScreenState extends State<LodgeComplaintScreen> {
 
   Future<void> _startRecording() async {
     try {
-      if (await _audioRecorder.hasPermission()) {
-        final path = await _audioRecorder.start(
-          const RecordConfig(),
-          path: 'audio_${DateTime.now().millisecondsSinceEpoch}.m4a',
-        );
-        setState(() {
-          _isRecording = true;
-          _audioPath = path;
-        });
+      // Check microphone permission
+      final hasPermission = await _audioRecorder.hasPermission();
+      if (!hasPermission) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Microphone permission is required for audio recording')),
+          );
+        }
+        return;
       }
+
+      // Get app documents directory for storing audio
+      final directory = await getApplicationDocumentsDirectory();
+      final path = '${directory.path}/audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
+      
+      await _audioRecorder.start(
+        const RecordConfig(
+          encoder: AudioEncoder.aacLc,
+          bitRate: 128000,
+          sampleRate: 44100,
+        ),
+        path: path,
+      );
+      
+      setState(() {
+        _isRecording = true;
+        _audioPath = path;
+      });
     } catch (e) {
       print('Recording error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Recording error: ${e.toString()}')),
+        );
+      }
     }
   }
 
@@ -281,13 +306,24 @@ class _LodgeComplaintScreenState extends State<LodgeComplaintScreen> {
               ),
             );
           } else {
-            // Success
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Complaint submitted successfully!')),
+            // Show success dialog with complaint details
+            final complaintData = data['complaint'] ?? data;
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (context) => ComplaintSuccessDialog(
+                complaint: complaintData,
+              ),
             );
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (_) => const CitizenDashboardScreen()),
-            );
+            // Navigate after dialog closes
+            Future.delayed(const Duration(seconds: 4), () {
+              if (mounted) {
+                Navigator.of(context).pop(); // Close dialog
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (_) => const CitizenDashboardScreen()),
+                );
+              }
+            });
           }
         }
       }
@@ -370,7 +406,9 @@ class _LodgeComplaintScreenState extends State<LodgeComplaintScreen> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                '${_position!.latitude.toStringAsFixed(6)}, ${_position!.longitude.toStringAsFixed(6)}',
+                                _position != null
+                                    ? '${_position!.latitude.toStringAsFixed(6)}, ${_position!.longitude.toStringAsFixed(6)}'
+                                    : 'Getting location...',
                               ),
                             ),
                             IconButton(

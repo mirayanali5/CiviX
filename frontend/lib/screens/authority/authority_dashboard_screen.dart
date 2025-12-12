@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
+import '../../widgets/bottom_navigation.dart';
 import 'authority_map_screen.dart';
 import 'authority_resolution_screen.dart';
 import 'authority_history_screen.dart';
@@ -18,6 +19,7 @@ class _AuthorityDashboardScreenState extends State<AuthorityDashboardScreen> {
   Map<String, dynamic>? _stats;
   List<Map<String, dynamic>> _complaints = [];
   bool _isLoading = true;
+  int _currentNavIndex = 0;
 
   @override
   void initState() {
@@ -40,12 +42,22 @@ class _AuthorityDashboardScreenState extends State<AuthorityDashboardScreen> {
 
       final complaintsResponse = await _apiService.getDepartmentComplaints();
       if (complaintsResponse.statusCode == 200) {
+        final data = complaintsResponse.data;
         setState(() {
-          _complaints = List<Map<String, dynamic>>.from(complaintsResponse.data['complaints']);
+          _complaints = data != null && data['complaints'] != null
+              ? List<Map<String, dynamic>>.from(data['complaints'])
+              : [];
+        });
+      } else {
+        setState(() {
+          _complaints = [];
         });
       }
     } catch (e) {
       print('Load dashboard error: $e');
+      setState(() {
+        _complaints = [];
+      });
     }
 
     setState(() {
@@ -113,7 +125,43 @@ class _AuthorityDashboardScreenState extends State<AuthorityDashboardScreen> {
                 ),
               ),
             ),
+      bottomNavigationBar: BottomNavigation(
+        currentIndex: _currentNavIndex,
+        onTap: (index) {
+          setState(() {
+            _currentNavIndex = index;
+          });
+          switch (index) {
+            case 0:
+              // Dashboard - already here
+              break;
+            case 1:
+              // New Report - not applicable for authority
+              break;
+            case 2:
+              // History
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AuthorityHistoryScreen()),
+              );
+              break;
+            case 3:
+              // Settings
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AuthorityProfileScreen()),
+              );
+              break;
+          }
+        },
+      ),
     );
+  }
+
+  void _onNavTap(int index) {
+    setState(() {
+      _currentNavIndex = index;
+    });
   }
 
   Widget _buildStatsCards() {
@@ -271,11 +319,11 @@ class _ComplaintCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 8),
-              if (complaint['photo_url'] != null)
+              if (complaint['image_url'] != null || complaint['photo_url'] != null)
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
                   child: Image.network(
-                    complaint['photo_url'],
+                    complaint['image_url'] ?? complaint['photo_url'],
                     height: 150,
                     width: double.infinity,
                     fit: BoxFit.cover,
@@ -290,7 +338,7 @@ class _ComplaintCard extends StatelessWidget {
                 ),
               const SizedBox(height: 8),
               Text(
-                complaint['transcript'] ?? 'No description',
+                complaint['description'] ?? complaint['transcript'] ?? complaint['translated_text'] ?? 'No description',
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontWeight: FontWeight.bold),
@@ -312,14 +360,22 @@ class _ComplaintCard extends StatelessWidget {
                   const Spacer(),
                   TextButton.icon(
                     onPressed: () {
-                      MapUtils.openGoogleMaps(
-                        complaint['gps_lat'],
-                        complaint['gps_long'],
-                      );
+                      final lat = complaint['latitude'] ?? complaint['gps_lat'];
+                      final lon = complaint['longitude'] ?? complaint['gps_long'];
+                      if (lat != null && lon != null) {
+                        MapUtils.openGoogleMaps(lat, lon);
+                      }
                     },
                     icon: const Icon(Icons.location_on, size: 16),
                     label: Text(
-                      '${complaint['gps_lat'].toStringAsFixed(4)}, ${complaint['gps_long'].toStringAsFixed(4)}',
+                      () {
+                        final lat = complaint['latitude'] ?? complaint['gps_lat'];
+                        final lon = complaint['longitude'] ?? complaint['gps_long'];
+                        if (lat != null && lon != null) {
+                          return '${(lat as num).toDouble().toStringAsFixed(4)}, ${(lon as num).toDouble().toStringAsFixed(4)}';
+                        }
+                        return 'Location not available';
+                      }(),
                       style: const TextStyle(fontSize: 12),
                     ),
                   ),

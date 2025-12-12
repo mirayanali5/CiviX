@@ -62,7 +62,7 @@ class _AuthorityResolutionScreenState extends State<AuthorityResolutionScreen> {
     }
   }
 
-  Future<void> _removePhoto(int index) {
+  void _removePhoto(int index) {
     setState(() {
       _resolutionPhotos.removeAt(index);
     });
@@ -146,16 +146,23 @@ class _AuthorityResolutionScreenState extends State<AuthorityResolutionScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       // Complaint Details
-                      if (_complaint!['photo_url'] != null)
+                      if (_complaint!['image_url'] != null || _complaint!['photo_url'] != null)
                         Image.network(
-                          _complaint!['photo_url'],
+                          _complaint!['image_url'] ?? _complaint!['photo_url'],
                           height: 300,
                           width: double.infinity,
                           fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              height: 300,
+                              color: Colors.grey[300],
+                              child: const Icon(Icons.image_not_supported),
+                            );
+                          },
                         ),
                       const SizedBox(height: 16),
                       Text(
-                        _complaint!['transcript'] ?? 'No description',
+                        _complaint!['description'] ?? _complaint!['transcript'] ?? _complaint!['translated_text'] ?? 'No description',
                         style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -170,8 +177,8 @@ class _AuthorityResolutionScreenState extends State<AuthorityResolutionScreen> {
                         children: [
                           Expanded(
                             child: OutlinedButton(
-                              onPressed: () => _updateStatus('In-Progress'),
-                              child: const Text('Mark In-Progress'),
+                              onPressed: () => _updateStatus('open'),
+                              child: const Text('Mark Open'),
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -190,14 +197,25 @@ class _AuthorityResolutionScreenState extends State<AuthorityResolutionScreen> {
                           leading: const Icon(Icons.location_on),
                           title: const Text('Location'),
                           subtitle: Text(
-                            '${_complaint!['gps_lat']}, ${_complaint!['gps_long']}',
+                            () {
+                              final lat = _complaint!['latitude'] ?? _complaint!['gps_lat'];
+                              final lon = _complaint!['longitude'] ?? _complaint!['gps_long'];
+                              if (lat != null && lon != null) {
+                                return '${(lat as num).toDouble().toStringAsFixed(6)}, ${(lon as num).toDouble().toStringAsFixed(6)}';
+                              }
+                              return 'Location not available';
+                            }(),
                           ),
                           trailing: const Icon(Icons.arrow_forward_ios),
                           onTap: () {
-                            MapUtils.openGoogleMaps(
-                              _complaint!['gps_lat'],
-                              _complaint!['gps_long'],
-                            );
+                            final lat = _complaint!['latitude'] ?? _complaint!['gps_lat'];
+                            final lon = _complaint!['longitude'] ?? _complaint!['gps_long'];
+                            if (lat != null && lon != null) {
+                              MapUtils.openGoogleMaps(
+                                (lat as num).toDouble(),
+                                (lon as num).toDouble(),
+                              );
+                            }
                           },
                         ),
                       ),

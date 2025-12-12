@@ -149,4 +149,89 @@ function extractProblemType(description, department) {
   return 'General';
 }
 
-module.exports = { classifyDepartment, DEPARTMENTS };
+/**
+ * Auto-generate tags based on department and description keywords
+ */
+function generateAutoTags(description, department) {
+  const tags = [];
+  const text = description.toLowerCase();
+
+  // Map departments to tag categories
+  const departmentTagMap = {
+    'GHMC Sanitation': 'Sanitation',
+    'GHMC Road & Engineering': 'Road',
+    'HMWSSB (Water Board)': 'Water',
+    'TSSPDCL (Electricity)': 'Electricity',
+    'GHMC Town Planning': 'Town Planning',
+    'GHMC Public Health / Entomology': 'Public Health'
+  };
+
+  // Add department-based tag
+  if (departmentTagMap[department]) {
+    tags.push(departmentTagMap[department]);
+  }
+
+  // Add specific issue tags based on keywords
+  const keywordTagMap = {
+    // Road issues
+    'pothole': 'Road',
+    'road': 'Road',
+    'street': 'Road',
+    'footpath': 'Road',
+    'pavement': 'Road',
+    'speed breaker': 'Road',
+    'manhole': 'Road',
+    
+    // Sanitation issues
+    'garbage': 'Sanitation',
+    'trash': 'Sanitation',
+    'dustbin': 'Sanitation',
+    'waste': 'Sanitation',
+    'dumping': 'Sanitation',
+    'cleaning': 'Sanitation',
+    
+    // Water issues
+    'water': 'Water',
+    'leak': 'Water',
+    'drainage': 'Water',
+    'sewer': 'Water',
+    'pipeline': 'Water',
+    'pipe burst': 'Water',
+    
+    // Electricity issues
+    'light': 'Electricity',
+    'street light': 'Electricity',
+    'electric': 'Electricity',
+    'power cut': 'Electricity',
+    'transformer': 'Electricity',
+    
+    // Town Planning
+    'illegal construction': 'Town Planning',
+    'encroachment': 'Town Planning',
+    'building': 'Town Planning',
+    
+    // Public Health
+    'mosquito': 'Public Health',
+    'dengue': 'Public Health',
+    'stray dog': 'Public Health',
+    'pest': 'Public Health'
+  };
+
+  // Check for keyword matches and add tags
+  for (const [keyword, tag] of Object.entries(keywordTagMap)) {
+    if (text.includes(keyword.toLowerCase())) {
+      if (!tags.includes(tag)) {
+        tags.push(tag);
+      }
+    }
+  }
+
+  // If no tags found, use department tag as fallback
+  if (tags.length === 0 && departmentTagMap[department]) {
+    tags.push(departmentTagMap[department]);
+  }
+
+  return tags;
+}
+
+module.exports = { classifyDepartment, DEPARTMENTS, generateAutoTags };

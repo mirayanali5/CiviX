@@ -8,7 +8,8 @@
     "dev": "nodemon server.js",
     "validate-env": "node config/validateEnv.js",
     "check-env": "node scripts/checkEnv.js",
-    "generate-jwt": "node scripts/generateJWTSecret.js"
+    "generate-jwt": "node scripts/generateJWTSecret.js",
+    "create-authority": "node scripts/createAuthorityUser.js"
   },
   "dependencies": {
     "@google-cloud/speech": "^6.0.1",
