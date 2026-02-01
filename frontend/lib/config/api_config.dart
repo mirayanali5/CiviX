@@ -11,5 +11,5 @@ class ApiConfig {
   /// Base URL including /api.
   /// For production: https://YOUR-SERVICE.onrender.com/api
   /// For local: http://YOUR_PC_IP:8080/api
-  static const String baseUrl = 'https://civix-backend.onrender.com/api';
+  static const String baseUrl = 'https://civix-backend-9lkj.onrender.com/api';
 }

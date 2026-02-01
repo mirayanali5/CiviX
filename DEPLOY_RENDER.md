@@ -130,6 +130,7 @@ The repo includes a `render.yaml` Blueprint that defines the backend service.
 | App can’t reach API | Confirm `frontend/lib/config/api_config.dart` `baseUrl` is exactly `https://...onrender.com/api` (with `/api`). |
 | CORS errors (e.g. from a web app) | Add `ALLOWED_ORIGINS` in Render (e.g. `*` or your frontend origin). |
 | 503 or long first load | Normal on free tier after idle; wait for the instance to wake up. |
+| **Database ENETUNREACH** (Supabase IPv6) | The backend uses `dns.setDefaultResultOrder('ipv4first')` so Supabase is reached over IPv4 on Render. Push the latest `backend/server.js` and redeploy. |
 
 ---
 

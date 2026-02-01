@@ -1,3 +1,6 @@
+// Prefer IPv4 for DNS (fixes Supabase ENETUNREACH on Render when IPv6 is unreachable)
+require('dns').setDefaultResultOrder('ipv4first');
+
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
