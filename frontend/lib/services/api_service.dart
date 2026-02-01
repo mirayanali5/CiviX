@@ -30,6 +30,11 @@ class ApiService {
     ));
   }
 
+  /// Ping /api/health to wake Render (free tier cold start). Call when login screen opens.
+  void pingHealth() {
+    _dio.get('/health').catchError((_) {});
+  }
+
   // Auth endpoints
   Future<Response> signup({
     required String name,

@@ -53,32 +53,42 @@ class AuthService {
     required String password,
   }) async {
     lastErrorMessage = null;
-    try {
-      final response = await _apiService.login(
-        email: email,
-        password: password,
-      );
+    for (int attempt = 0; attempt < 2; attempt++) {
+      try {
+        final response = await _apiService.login(
+          email: email,
+          password: password,
+        );
 
-      if (response.statusCode == 200 && response.data != null) {
-        final token = response.data['token'];
-        final user = response.data['user'];
-        if (token != null && user != null) {
-          await _saveToken(token.toString());
-          await _saveUser(Map<String, dynamic>.from(user));
-          return true;
+        if (response.statusCode == 200 && response.data != null) {
+          final token = response.data['token'];
+          final user = response.data['user'];
+          if (token != null && user != null) {
+            await _saveToken(token.toString());
+            await _saveUser(Map<String, dynamic>.from(user));
+            return true;
+          }
         }
+        lastErrorMessage = _getMessage(response.data, 'Login failed');
+        return false;
+      } on DioException catch (e) {
+        lastErrorMessage = _errorMessage(e);
+        final isTimeout = e.type == DioExceptionType.connectionTimeout ||
+            e.type == DioExceptionType.sendTimeout ||
+            e.type == DioExceptionType.receiveTimeout;
+        if (isTimeout && attempt == 0) {
+          await Future.delayed(const Duration(seconds: 2));
+          continue;
+        }
+        print('Login error: $lastErrorMessage');
+        return false;
+      } catch (e) {
+        lastErrorMessage = e.toString();
+        print('Login error: $e');
+        return false;
       }
-      lastErrorMessage = _getMessage(response.data, 'Login failed');
-      return false;
-    } on DioException catch (e) {
-      lastErrorMessage = _errorMessage(e);
-      print('Login error: $lastErrorMessage');
-      return false;
-    } catch (e) {
-      lastErrorMessage = e.toString();
-      print('Login error: $e');
-      return false;
     }
+    return false;
   }
 
   Future<bool> authorityLogin({

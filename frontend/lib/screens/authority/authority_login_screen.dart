@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../config/app_theme.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/api_service.dart';
 import '../role_selection_screen.dart';
 import 'authority_dashboard_screen.dart';
 
@@ -17,6 +18,12 @@ class _AuthorityLoginScreenState extends State<AuthorityLoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+
+  @override
+  void initState() {
+    super.initState();
+    ApiService().pingHealth();
+  }
 
   @override
   void dispose() {

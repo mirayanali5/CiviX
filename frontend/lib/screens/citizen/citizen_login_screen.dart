@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/api_service.dart';
 import 'citizen_signup_screen.dart';
 import 'citizen_dashboard_screen.dart';
 
@@ -16,6 +17,13 @@ class _CitizenLoginScreenState extends State<CitizenLoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+
+  @override
+  void initState() {
+    super.initState();
+    // Wake Render free-tier service so login request doesn't hit cold start
+    ApiService().pingHealth();
+  }
 
   @override
   void dispose() {
@@ -54,11 +62,16 @@ class _CitizenLoginScreenState extends State<CitizenLoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Citizen Login'),
-      ),
-      body: SingleChildScrollView(
+    return Consumer<AuthProvider>(
+      builder: (context, authProvider, _) {
+        final isLoading = authProvider.isLoading;
+        return Stack(
+          children: [
+            Scaffold(
+              appBar: AppBar(
+                title: const Text('Citizen Login'),
+              ),
+              body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
         child: Form(
           key: _formKey,
@@ -138,13 +151,22 @@ class _CitizenLoginScreenState extends State<CitizenLoginScreen> {
                   child: const Text('Forgot Password?'),
                 ),
               ),
+              if (isLoading)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    'Connecting… First time may take up to a minute.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
               const SizedBox(height: 24),
               ElevatedButton(
-                onPressed: _handleLogin,
+                onPressed: isLoading ? null : _handleLogin,
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
-                child: const Text('Login'),
+                child: Text(isLoading ? 'Logging in…' : 'Login'),
               ),
               const SizedBox(height: 16),
               TextButton(
@@ -160,6 +182,15 @@ class _CitizenLoginScreenState extends State<CitizenLoginScreen> {
           ),
         ),
       ),
+            ),
+            if (isLoading)
+              const ModalBarrier(
+                color: Colors.black26,
+                dismissible: false,
+              ),
+          ],
+        );
+      },
     );
   }
 }

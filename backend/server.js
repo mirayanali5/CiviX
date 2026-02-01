@@ -102,6 +102,10 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`   Mobile: http://${localIp}:${PORT}/api  ← use this in frontend/lib/config/api_config.dart`);
   }
   console.log('');
+  // Pre-warm DB so first login doesn't wait for connection (Render + Supabase pooler)
+  setImmediate(() => {
+    pool.query('SELECT 1').then(() => console.log('   DB: Connection pre-warmed.')).catch(() => {});
+  });
 });
 
 function getLocalNetworkIp() {
