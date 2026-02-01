@@ -151,9 +151,9 @@ Render cannot reach Supabase’s **direct** host (`db.xxx.supabase.co`) over IPv
    - Set **DATABASE_URL** to this **pooler URI** (paste the one you copied).
 7. **Save** and let Render **redeploy** (or trigger a manual deploy).
 
-After deploy, logs should show **✅ Database connection verified**.
+After deploy, logs will show **"DB: Using Supabase pooler; connection will be established on first request."** (the startup DB test is skipped for the pooler so you don’t see a timeout warning). **Try using the app** (e.g. login)—the first request may take up to ~60 seconds; later requests should be fast.
 
-If you see **Connection terminated due to connection timeout** with the pooler host: the backend uses a 30s connection timeout for cross-region (e.g. Render US ↔ Supabase ap-south-1). Push the latest `backend/config/database.js` and redeploy. If it still times out, try hitting the API once the service is live—the first real request may succeed after the test times out.
+**Pooler URI format:** Username must be **`postgres.[PROJECT-REF]`** (e.g. `postgres.nwzpytaofgjhshefvkvo`), not just `postgres`. Get the exact URI from Supabase → Database → Connection pooling → Session mode.
 
 ---
 

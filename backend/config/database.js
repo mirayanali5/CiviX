@@ -38,7 +38,7 @@ const pool = new Pool({
   // Connection pool settings
   max: 10,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 30000, // 30s for cross-region (e.g. Render → Supabase pooler ap-south-1)
+  connectionTimeoutMillis: 60000, // 60s for cross-region (Render ↔ Supabase pooler)
   keepAlive: true,
   keepAliveInitialDelayMillis: 10000,
 });
@@ -48,7 +48,7 @@ pool.on('error', (err) => {
   // Don't exit process, just log the error
 });
 
-// Test database connection after a short delay (lets server finish startup)
+// Test database connection after a short delay (skip for pooler: cross-region often times out on startup)
 setTimeout(() => {
   if (!databaseUrl) {
     console.warn('⚠️  DATABASE_URL not set - skipping connection test');
@@ -64,6 +64,12 @@ setTimeout(() => {
     if (match) hostname = match[1];
   }
 
+  // Skip startup test for Supabase pooler: Render → ap-south-1 often times out; first API request will connect
+  if (hostname && hostname.includes('pooler.supabase.com')) {
+    console.log('   DB: Using Supabase pooler; connection will be established on first request.');
+    return;
+  }
+
   pool.query('SELECT NOW()', (err, res) => {
     if (err) {
       console.warn('⚠️  Database connection test failed');
@@ -71,24 +77,16 @@ setTimeout(() => {
       
       if (err.code === 'ENOTFOUND') {
         console.warn('   Error: DNS resolution failed - hostname not found');
-        console.warn('   Possible causes:');
-        console.warn('   1. Incorrect DATABASE_URL in .env file');
-        console.warn('   2. Supabase project URL is wrong');
-        console.warn('   3. Network connectivity issues');
-        console.warn('   Check your DATABASE_URL format:');
-        console.warn('   postgresql://postgres:[PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres');
-      } else if (err.code === 'ETIMEDOUT') {
+      } else if (err.code === 'ETIMEDOUT' || (err.message && err.message.includes('timeout'))) {
         console.warn('   Error: Connection timeout');
-        console.warn('   Check your network connection and firewall settings');
       } else {
         console.warn(`   Error: ${err.message}`);
       }
-      
-      console.warn('   Server will continue, but database queries may fail');
+      console.warn('   Server will continue; DB may connect on first request.');
     } else {
       console.log('✅ Database connection verified');
     }
   });
-}, 100); // Test after 100ms, non-blocking
+}, 100);
 
 module.exports = pool;
