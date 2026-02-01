@@ -47,6 +47,15 @@ app.use('/api/users', userRoutes);
 // Authority routes require JWT verification first so req.user is set for requireAuthority
 app.use('/api/authority', authenticateToken, authorityRoutes);
 
+// Root – so visiting the URL doesn’t show "Cannot GET /"
+app.get('/', (req, res) => {
+  res.json({
+    name: 'CiviX API',
+    message: 'API is running. Use /api/... for endpoints.',
+    health: '/api/health',
+  });
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'CiviX API Server is running' });
