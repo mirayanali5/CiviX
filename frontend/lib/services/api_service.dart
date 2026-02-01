@@ -11,8 +11,8 @@ class ApiService {
   ApiService() {
     _dio = Dio(BaseOptions(
       baseUrl: ApiConfig.baseUrl,
-      connectTimeout: const Duration(seconds: 30),
-      receiveTimeout: const Duration(seconds: 30),
+      connectTimeout: const Duration(seconds: 90),  // First request may be slow (cold start + DB connect)
+      receiveTimeout: const Duration(seconds: 90),
     ));
 
     _dio.interceptors.add(InterceptorsWrapper(

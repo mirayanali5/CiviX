@@ -7,8 +7,8 @@ services:
     name: civix-backend
     runtime: node
     plan: free
+    region: singapore   # Closer to Supabase ap-south-1 (Mumbai); avoids DB connection timeout
 
-    # Repo root is CiviX Local; app lives in backend/
     rootDir: backend
 
     buildCommand: npm install

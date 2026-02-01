@@ -157,6 +157,27 @@ After deploy, logs will show **"DB: Using Supabase pooler; connection will be es
 
 ---
 
+## If login shows "Connection timeout"
+
+If the app shows **"Connection timeout. Check network and try again"** on login, the backend (Render) is too far from your Supabase pooler (e.g. Oregon ↔ ap-south-1 Mumbai). **Deploy the backend in Singapore** so it’s closer to Supabase ap-south-1:
+
+1. **Create a new Web Service** on Render (you can’t change region on an existing service):
+   - [dashboard.render.com](https://dashboard.render.com) → **New +** → **Web Service**.
+   - Connect the **same repo** (civix-backend).
+   - **Name:** e.g. `civix-backend-sg`.
+   - **Region:** choose **Singapore** (not Oregon).
+   - **Root Directory:** `backend` (or leave blank if the repo root is the backend).
+   - **Build:** `npm install` | **Start:** `npm start`.
+   - Add the **same environment variables** (DATABASE_URL, JWT_SECRET, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, etc.).
+2. **Deploy** and copy the new URL (e.g. `https://civix-backend-sg.onrender.com`).
+3. **Update the app:** in `frontend/lib/config/api_config.dart` set  
+   `baseUrl = 'https://YOUR-NEW-SERVICE.onrender.com/api'`.
+4. **Rebuild and reinstall** the Flutter app, then try login again.
+
+The app’s request timeout is 90 seconds so the first request has time to complete. New Blueprint deploys use `region: singapore` in `render.yaml` by default.
+
+---
+
 ## Summary
 
 1. Push code (with `render.yaml` and `backend/`) to GitHub.
