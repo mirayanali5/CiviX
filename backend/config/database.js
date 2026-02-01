@@ -1,11 +1,28 @@
 const { Pool } = require('pg');
+const dns = require('dns');
 require('dotenv').config();
 
 // Get database URL from environment
-const databaseUrl = process.env.DATABASE_URL;
+let databaseUrl = process.env.DATABASE_URL;
 
 if (!databaseUrl) {
   console.warn('⚠️  DATABASE_URL not found in environment variables');
+}
+
+// Force IPv4 for DB host (fixes ENETUNREACH on Render when Supabase resolves to IPv6)
+if (databaseUrl && databaseUrl.startsWith('postgresql://')) {
+  try {
+    const url = new URL(databaseUrl);
+    const hostname = url.hostname;
+    // Skip if already an IP
+    if (hostname && !/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) && !hostname.startsWith('[')) {
+      const ipv4 = dns.lookupSync(hostname, { family: 4 });
+      url.hostname = ipv4;
+      databaseUrl = url.toString();
+    }
+  } catch (e) {
+    // Keep original URL if resolution fails
+  }
 }
 
 const pool = new Pool({
