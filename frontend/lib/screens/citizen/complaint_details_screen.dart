@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
+import '../../config/app_theme.dart';
 import '../../providers/complaint_provider.dart';
 import '../../utils/map_utils.dart';
-import 'package:intl/intl.dart';
 
 class ComplaintDetailsScreen extends StatefulWidget {
   final String complaintId;
@@ -24,28 +25,23 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
   }
 
   Color _getStatusColor(String? status) {
-    switch (status) {
-      case 'Open':
-        return Colors.orange;
-      case 'In-Progress':
-        return Colors.blue;
-      case 'Resolved':
-        return Colors.green;
-      default:
-        return Colors.grey;
-    }
+    final s = (status ?? '').toLowerCase();
+    if (s == 'open') return AppTheme.statusOrange;
+    if (s == 'in-progress') return AppTheme.statusBlue;
+    if (s == 'resolved') return AppTheme.statusGreen;
+    return AppTheme.textSecondary;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Complaint Details'),
+        title: const Text('Details'),
       ),
       body: Consumer<ComplaintProvider>(
         builder: (context, provider, child) {
           if (provider.isLoading) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: CircularProgressIndicator(color: AppTheme.primaryTeal));
           }
 
           final complaint = provider.selectedComplaint;
@@ -53,150 +49,228 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
             return const Center(child: Text('Complaint not found'));
           }
 
+          final isResolved = (complaint['status'] ?? '').toString().toLowerCase() == 'resolved';
+          final resolutionPhotos = complaint['resolution_photos'] as List?;
+          final hasResolutionPhotos = resolutionPhotos != null && resolutionPhotos.isNotEmpty;
+
           return SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Photo
-                if (complaint['photo_url'] != null)
-                  Image.network(
-                    complaint['photo_url'],
-                    height: 300,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        height: 300,
-                        color: Colors.grey[300],
-                        child: const Icon(Icons.image_not_supported, size: 64),
-                      );
-                    },
+                // Reported media
+                if (complaint['photo_url'] != null || complaint['image_url'] != null)
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Reported media (tap for full size)',
+                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.network(
+                            complaint['photo_url'] ?? complaint['image_url'],
+                            height: 220,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              height: 220,
+                              color: AppTheme.surfaceCard,
+                              child: const Icon(Icons.image_not_supported, size: 48, color: AppTheme.textSecondary),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 Padding(
-                  padding: const EdgeInsets.all(16.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Status
-                      Chip(
-                        label: Text(complaint['status'] ?? 'Open'),
-                        backgroundColor: _getStatusColor(complaint['status']).withOpacity(0.2),
+                      Row(
+                        children: [
+                          Text(
+                            complaint['transcript'] ?? 'No description',
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Chip(
+                            label: Text(complaint['status'] ?? 'Open'),
+                            backgroundColor: _getStatusColor(complaint['status']).withOpacity(0.25),
+                            labelStyle: TextStyle(
+                              color: _getStatusColor(complaint['status']),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 16),
-                      // Title/Description
-                      Text(
-                        complaint['transcript'] ?? 'No description',
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      // Department
+                      const SizedBox(height: 12),
                       if (complaint['department'] != null)
                         Chip(
                           label: Text(complaint['department']),
+                          backgroundColor: AppTheme.surfaceCardElevated,
                         ),
                       const SizedBox(height: 16),
-                      // Transcripts
-                      if (complaint['transcript_translated'] != null &&
-                          complaint['transcript_translated'] != complaint['transcript'])
-                        ExpansionTile(
-                          title: const Text('Audio Transcript'),
-                          children: [
-                            ListTile(
-                              title: const Text('Original'),
-                              subtitle: Text(complaint['transcript'] ?? ''),
-                            ),
-                            ListTile(
-                              title: const Text('Translated'),
-                              subtitle: Text(complaint['transcript_translated'] ?? ''),
-                            ),
-                          ],
-                        ),
-                      const SizedBox(height: 16),
-                      // Tags
-                      if (complaint['tags'] != null && (complaint['tags'] as List).isNotEmpty)
-                        Wrap(
-                          spacing: 8,
-                          children: (complaint['tags'] as List)
-                              .map((tag) => Chip(label: Text(tag)))
-                              .toList(),
-                        ),
-                      const SizedBox(height: 16),
-                      // GPS Coordinates
-                      Card(
-                        child: ListTile(
-                          leading: const Icon(Icons.location_on),
-                          title: const Text('Location'),
-                          subtitle: Text(
-                            () {
-                              final lat = complaint['latitude'] ?? complaint['gps_lat'];
-                              final lon = complaint['longitude'] ?? complaint['gps_long'];
-                              if (lat != null && lon != null) {
-                                return '${(lat as num).toDouble().toStringAsFixed(6)}, ${(lon as num).toDouble().toStringAsFixed(6)}';
-                              }
-                              return 'Location not available';
-                            }(),
+                      // Resolution proof (shown to citizens when resolved)
+                      if (isResolved && hasResolutionPhotos) ...[
+                        Text(
+                          'Resolution proof',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
                           ),
-                          trailing: const Icon(Icons.arrow_forward_ios),
-                          onTap: () {
-                            final lat = complaint['latitude'] ?? complaint['gps_lat'];
-                            final lon = complaint['longitude'] ?? complaint['gps_long'];
-                            if (lat != null && lon != null) {
-                              MapUtils.openGoogleMaps(
-                                (lat as num).toDouble(),
-                                (lon as num).toDouble(),
-                              );
-                            }
-                          },
+                        ),
+                        const SizedBox(height: 8),
+                        ...resolutionPhotos.map<Widget>((url) {
+                          final s = url?.toString() ?? '';
+                          if (s.isEmpty) return const SizedBox.shrink();
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Image.network(
+                                s,
+                                height: 220,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Container(
+                                  height: 180,
+                                  color: AppTheme.surfaceCard,
+                                  child: const Icon(Icons.image_not_supported, size: 48, color: AppTheme.textSecondary),
+                                ),
+                              ),
+                            ),
+                          );
+                        }),
+                        if (complaint['resolution_notes'] != null &&
+                            (complaint['resolution_notes'] as String).trim().isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            complaint['resolution_notes'],
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: AppTheme.textSecondary,
+                            ),
+                          ),
+                        ],
+                        if (complaint['resolved_at'] != null) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Resolved ${_formatDate(complaint['resolved_at'])}',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppTheme.textSecondary,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 20),
+                      ],
+                      // Location
+                      InkWell(
+                        onTap: () {
+                          final lat = complaint['latitude'] ?? complaint['gps_lat'];
+                          final lon = complaint['longitude'] ?? complaint['gps_long'];
+                          if (lat != null && lon != null) {
+                            MapUtils.openGoogleMaps(
+                              (lat as num).toDouble(),
+                              (lon as num).toDouble(),
+                            );
+                          }
+                        },
+                        borderRadius: BorderRadius.circular(12),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.location_on, color: AppTheme.statusOrange, size: 22),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Location',
+                                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                        color: AppTheme.textSecondary,
+                                      ),
+                                    ),
+                                    Text(
+                                      () {
+                                        final lat = complaint['latitude'] ?? complaint['gps_lat'];
+                                        final lon = complaint['longitude'] ?? complaint['gps_long'];
+                                        if (lat != null && lon != null) {
+                                          return '${(lat as num).toDouble().toStringAsFixed(6)}, ${(lon as num).toDouble().toStringAsFixed(6)}';
+                                        }
+                                        return 'Location not available';
+                                      }(),
+                                      style: const TextStyle(color: AppTheme.primaryTeal),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Icon(Icons.arrow_forward_ios, size: 14, color: AppTheme.textSecondary),
+                            ],
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      // Upvotes
+                      const SizedBox(height: 8),
                       Row(
                         children: [
                           IconButton(
-                            icon: const Icon(Icons.thumb_up),
+                            icon: const Icon(Icons.favorite_border, color: AppTheme.primaryTeal),
                             onPressed: () async {
                               final success = await provider.upvoteComplaint(widget.complaintId);
                               if (success && mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Upvoted!')),
+                                  const SnackBar(
+                                    content: Text('Upvoted!'),
+                                    backgroundColor: AppTheme.primaryTeal,
+                                  ),
                                 );
                               }
                             },
                           ),
-                          Text('${complaint['upvote_count'] ?? 0} upvotes'),
+                          Text(
+                            '${complaint['upvote_count'] ?? 0} upvotes',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
                         ],
                       ),
-                      const SizedBox(height: 16),
-                      // Timeline
-                      const Text(
+                      const SizedBox(height: 20),
+                      Text(
                         'Timeline',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       _TimelineItem(
                         title: 'Created',
                         date: complaint['created_at'],
                         icon: Icons.add_circle,
-                        color: Colors.blue,
+                        color: AppTheme.statusBlue,
                       ),
                       if (complaint['status'] == 'In-Progress' || complaint['status'] == 'Resolved')
                         _TimelineItem(
                           title: 'In Progress',
-                          date: complaint['created_at'], // Use actual in-progress date if available
+                          date: complaint['created_at'],
                           icon: Icons.work,
-                          color: Colors.orange,
+                          color: AppTheme.statusOrange,
                         ),
                       if (complaint['status'] == 'Resolved')
                         _TimelineItem(
                           title: 'Resolved',
-                          date: complaint['created_at'], // Use actual resolved date if available
+                          date: complaint['resolved_at'] ?? complaint['created_at'],
                           icon: Icons.check_circle,
-                          color: Colors.green,
+                          color: AppTheme.statusGreen,
                         ),
+                      const SizedBox(height: 24),
                     ],
                   ),
                 ),
@@ -206,6 +280,16 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
         },
       ),
     );
+  }
+
+  String _formatDate(dynamic date) {
+    if (date == null) return '';
+    try {
+      final parsed = DateTime.parse(date.toString());
+      return DateFormat('MMM dd, yyyy').format(parsed);
+    } catch (_) {
+      return date.toString();
+    }
   }
 }
 

@@ -39,8 +39,15 @@ class _CitizenLoginScreenState extends State<CitizenLoginScreen> {
         MaterialPageRoute(builder: (_) => const CitizenDashboardScreen()),
       );
     } else if (mounted) {
+      final msg = authProvider.lastErrorMessage?.isNotEmpty == true
+          ? authProvider.lastErrorMessage!
+          : 'Login failed. Create an account first if you have not signed up.';
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Login failed. Please check your credentials.')),
+        SnackBar(
+          content: Text(msg),
+          backgroundColor: Colors.red.shade700,
+          duration: const Duration(seconds: 5),
+        ),
       );
     }
   }

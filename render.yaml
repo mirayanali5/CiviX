@@ -1,0 +1,39 @@
+# CiviX Backend - Render Blueprint
+# Deploy from: https://dashboard.render.com → New → Blueprint
+# Or add as Web Service manually and set Root Directory to "backend"
+
+services:
+  - type: web
+    name: civix-backend
+    runtime: node
+    plan: free
+
+    # Repo root is CiviX Local; app lives in backend/
+    rootDir: backend
+
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+
+    # Optional: only deploy when backend folder changes
+    buildFilter:
+      paths:
+        - backend/**/*
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Secrets – set in Render Dashboard (Environment) or you'll be prompted if using sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      # Optional – add in Dashboard after deploy if you use them
+      # - key: GEMINI_API_KEY
+      #   sync: false
+      # - key: ALLOWED_ORIGINS
+      #   value: "*"

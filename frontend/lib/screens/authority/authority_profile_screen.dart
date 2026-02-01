@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:permission_handler/permission_handler.dart';
+import '../../config/app_theme.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/theme_provider.dart';
 import '../../screens/role_selection_screen.dart';
 import '../../services/api_service.dart';
 
@@ -26,131 +27,238 @@ class _AuthorityProfileScreenState extends State<AuthorityProfileScreen> {
   Future<void> _loadProfile() async {
     try {
       final response = await _apiService.getUserProfile();
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 && response.data != null) {
         setState(() {
           _profile = response.data['user'];
           _isLoading = false;
         });
+      } else {
+        setState(() {
+          _profile = null;
+          _isLoading = false;
+        });
       }
     } catch (e) {
-      print('Load profile error: $e');
       setState(() {
+        _profile = null;
         _isLoading = false;
       });
     }
   }
 
-  Future<bool> _checkPermission(Permission permission) async {
-    final status = await permission.status;
-    return status.isGranted;
-  }
-
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Authority Profile'),
+        title: const Text('Settings'),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(
+              child: CircularProgressIndicator(
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            )
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (_profile != null) ...[
-                    _ProfileItem(
-                      icon: Icons.person,
-                      label: 'Name',
-                      value: _profile!['name'] ?? 'N/A',
+                  Text(
+                    'Settings',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
                     ),
-                    _ProfileItem(
-                      icon: Icons.email,
-                      label: 'Email',
-                      value: _profile!['email'] ?? 'N/A',
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Manage your profile and app preferences.',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: isDark ? AppTheme.textSecondary : Colors.grey,
                     ),
-                    _ProfileItem(
-                      icon: Icons.business,
-                      label: 'Department',
-                      value: _profile!['department'] ?? 'N/A',
-                    ),
-                    _ProfileItem(
-                      icon: Icons.lock,
-                      label: 'Account Type',
-                      value: 'Public (Authority accounts are always public)',
-                    ),
-                  ],
+                  ),
                   const SizedBox(height: 24),
-                  const Text(
-                    'Permissions',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  if (_profile != null)
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppTheme.surfaceCard : Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: isDark ? null : [BoxShadow(color: Colors.black12, blurRadius: 4, offset: const Offset(0, 2))],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 28,
+                                backgroundColor: (isDark ? AppTheme.statusBlue : Colors.blue.shade100),
+                                child: Text(
+                                  (_profile!['name'] ?? 'A').toString().isNotEmpty
+                                      ? (_profile!['name'] as String)[0].toUpperCase()
+                                      : 'A',
+                                  style: TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    color: isDark ? Colors.white : Colors.blue.shade800,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Authority User',
+                                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                    ),
+                                    if (_profile!['department'] != null &&
+                                        _profile!['department'].toString().trim().isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 4),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: isDark ? AppTheme.surfaceCardElevated : Colors.white,
+                                            borderRadius: BorderRadius.circular(20),
+                                          ),
+                                          child: Text(
+                                            _profile!['department'].toString(),
+                                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          _ProfileRow(
+                            label: 'Name',
+                            value: _profile!['name'] ?? 'N/A',
+                            isDark: isDark,
+                          ),
+                          _ProfileRow(
+                            label: 'Email',
+                            value: _profile!['email'] ?? 'N/A',
+                            isDark: isDark,
+                          ),
+                          if (_profile!['department'] != null)
+                            _ProfileRow(
+                              label: 'Department',
+                              value: _profile!['department'].toString(),
+                              isDark: isDark,
+                            ),
+                          _ProfileRow(
+                            label: 'Role',
+                            value: (_profile!['role'] ?? 'authority').toString().toUpperCase(),
+                            isDark: isDark,
+                          ),
+                        ],
+                      ),
+                    ),
+                  if (_profile == null)
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(32),
+                        child: Text(
+                          'Could not load profile.',
+                          style: TextStyle(
+                            color: isDark ? AppTheme.textSecondary : Colors.grey,
+                          ),
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Appearance',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 8),
-                  FutureBuilder<bool>(
-                    future: _checkPermission(Permission.camera),
-                    builder: (context, snapshot) {
-                      return _PermissionItem(
-                        icon: Icons.camera_alt,
-                        label: 'Camera',
-                        granted: snapshot.data ?? false,
+                  Consumer<ThemeProvider>(
+                    builder: (context, themeProvider, _) {
+                      return Row(
+                        children: [
+                          Expanded(
+                            child: _ThemeChip(
+                              label: 'System',
+                              isSelected: themeProvider.themeMode == ThemeMode.system,
+                              onTap: () => themeProvider.setThemeMode(ThemeMode.system),
+                              isDark: isDark,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _ThemeChip(
+                              label: 'Light',
+                              isSelected: themeProvider.themeMode == ThemeMode.light,
+                              onTap: () => themeProvider.setThemeMode(ThemeMode.light),
+                              isDark: isDark,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _ThemeChip(
+                              label: 'Dark',
+                              isSelected: themeProvider.themeMode == ThemeMode.dark,
+                              onTap: () => themeProvider.setThemeMode(ThemeMode.dark),
+                              isDark: isDark,
+                            ),
+                          ),
+                        ],
                       );
                     },
                   ),
-                  FutureBuilder<bool>(
-                    future: _checkPermission(Permission.microphone),
-                    builder: (context, snapshot) {
-                      return _PermissionItem(
-                        icon: Icons.mic,
-                        label: 'Microphone',
-                        granted: snapshot.data ?? false,
-                      );
-                    },
-                  ),
-                  FutureBuilder<bool>(
-                    future: _checkPermission(Permission.location),
-                    builder: (context, snapshot) {
-                      return _PermissionItem(
-                        icon: Icons.location_on,
-                        label: 'GPS Location',
-                        granted: snapshot.data ?? false,
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 32),
-                  OutlinedButton.icon(
-                    onPressed: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
-                      );
-                    },
-                    icon: const Icon(Icons.swap_horiz),
-                    label: const Text('Switch to Citizen Login'),
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size(double.infinity, 48),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
+                        );
+                      },
+                      icon: Icon(Icons.swap_horiz, color: isDark ? AppTheme.statusOrange : Colors.orange),
+                      label: Text(
+                        'Switch to Citizen Login',
+                        style: TextStyle(color: isDark ? AppTheme.statusOrange : Colors.orange),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        side: BorderSide(color: isDark ? AppTheme.statusOrange : Colors.orange),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  Consumer<AuthProvider>(
-                    builder: (context, authProvider, child) {
-                      return ElevatedButton.icon(
-                        onPressed: () async {
-                          await authProvider.logout();
-                          if (mounted) {
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
-                            );
-                          }
-                        },
-                        icon: const Icon(Icons.logout),
-                        label: const Text('Logout'),
-                        style: ElevatedButton.styleFrom(
-                          minimumSize: const Size(double.infinity, 48),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    },
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: TextButton.icon(
+                      onPressed: () async {
+                        await Provider.of<AuthProvider>(context, listen: false).logout();
+                        if (mounted) {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
+                          );
+                        }
+                      },
+                      icon: Icon(Icons.logout, size: 20, color: isDark ? AppTheme.textSecondary : Colors.grey),
+                      label: Text(
+                        'Logout',
+                        style: TextStyle(color: isDark ? AppTheme.textSecondary : Colors.grey),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -159,49 +267,78 @@ class _AuthorityProfileScreenState extends State<AuthorityProfileScreen> {
   }
 }
 
-class _ProfileItem extends StatelessWidget {
-  final IconData icon;
+class _ProfileRow extends StatelessWidget {
   final String label;
   final String value;
+  final bool isDark;
 
-  const _ProfileItem({
-    required this.icon,
+  const _ProfileRow({
     required this.label,
     required this.value,
+    required this.isDark,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        leading: Icon(icon),
-        title: Text(label),
-        subtitle: Text(value),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: isDark ? AppTheme.textSecondary : Colors.grey.shade700,
+              fontSize: 14,
+            ),
+          ),
+          Flexible(
+            child: Text(
+              value,
+              style: Theme.of(context).textTheme.bodyMedium,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _PermissionItem extends StatelessWidget {
-  final IconData icon;
+class _ThemeChip extends StatelessWidget {
   final String label;
-  final bool granted;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final bool isDark;
 
-  const _PermissionItem({
-    required this.icon,
+  const _ThemeChip({
     required this.label,
-    required this.granted,
+    required this.isSelected,
+    required this.onTap,
+    required this.isDark,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        leading: Icon(icon),
-        title: Text(label),
-        trailing: Icon(
-          granted ? Icons.check_circle : Icons.cancel,
-          color: granted ? Colors.green : Colors.red,
+    final primary = Theme.of(context).colorScheme.primary;
+    return Material(
+      color: isSelected ? primary.withOpacity(0.2) : (isDark ? AppTheme.surfaceCard : Colors.grey.shade200),
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Center(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected ? primary : (isDark ? AppTheme.textPrimary : Colors.black87),
+              ),
+            ),
+          ),
         ),
       ),
     );

@@ -1,47 +1,37 @@
-// Script to create an authority user with hashed password
-// Usage: node scripts/createAuthorityUser.js <email> <password> <department>
+// Script to create an authority user (plain text password in profiles.password)
+// Usage: node scripts/createAuthorityUser.js <email> <password> <department> [full_name]
 
-const bcrypt = require('bcrypt');
 const { v4: uuidv4 } = require('uuid');
 const pool = require('../config/database');
 require('dotenv').config();
 
 async function createAuthorityUser(email, password, department, fullName) {
   try {
-    // Check if user already exists
-    const existing = await pool.query(
-      'SELECT id FROM profiles WHERE email = $1',
-      [email]
-    );
-
-    if (existing.rows.length > 0) {
-      console.log('❌ User already exists with this email');
+    const emailNorm = (email || '').trim().toLowerCase();
+    if (!emailNorm || !password || !department) {
+      console.log('❌ Email, password, and department are required');
       return;
     }
 
-    // Hash password
-    const passwordHash = await bcrypt.hash(password, 10);
+    // Check if user already exists (case-insensitive)
+    const existing = await pool.query(
+      'SELECT id FROM profiles WHERE LOWER(TRIM(email)) = $1',
+      [emailNorm]
+    );
 
-    // Generate UUID
-    const userId = uuidv4();
-
-    // First, ensure password_hash column exists
-    try {
-      await pool.query('ALTER TABLE profiles ADD COLUMN IF NOT EXISTS password_hash TEXT');
-      console.log('✅ password_hash column checked/created');
-    } catch (err) {
-      // Column might already exist, that's okay
-      if (!err.message.includes('already exists')) {
-        throw err;
-      }
+    if (existing.rows.length > 0) {
+      console.log('❌ User already exists with this email. Use a different email or update the existing profile.');
+      return;
     }
 
-    // Insert authority user
+    const userId = uuidv4();
+
+    // Insert authority user with plain text password (profiles.password)
     const result = await pool.query(
-      `INSERT INTO profiles (id, email, full_name, role, department, password_hash)
-       VALUES ($1::uuid, $2, $3, 'authority', $4, $5)
+      `INSERT INTO profiles (id, email, full_name, role, account_type, department, password)
+       VALUES ($1::uuid, $2, $3, 'authority', 'public', $4, $5)
        RETURNING id, email, full_name, role, department`,
-      [userId, email, fullName || 'Authority User', department, passwordHash]
+      [userId, emailNorm, fullName || 'Authority User', department, password]
     );
 
     console.log('✅ Authority user created successfully!');

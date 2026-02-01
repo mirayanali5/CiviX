@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../config/app_theme.dart';
 import 'citizen/citizen_login_screen.dart';
 import 'authority/authority_login_screen.dart';
 
@@ -8,47 +9,56 @@ class RoleSelectionScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('CiviX'),
-        centerTitle: true,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text(
-              'Select Your Role',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text(
+                'Welcome',
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textPrimary,
+                ),
               ),
-            ),
-            const SizedBox(height: 50),
-            _RoleCard(
-              title: 'Citizen',
-              icon: Icons.person,
-              color: Colors.blue,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const CitizenLoginScreen()),
-                );
-              },
-            ),
-            const SizedBox(height: 20),
-            _RoleCard(
-              title: 'Authority',
-              icon: Icons.badge,
-              color: Colors.green,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AuthorityLoginScreen()),
-                );
-              },
-            ),
-          ],
+              const SizedBox(height: 8),
+              Text(
+                'Please select your role to continue:',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: AppTheme.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 48),
+              _RoleCard(
+                title: 'Citizen',
+                subtitle: 'File Complaints & Track Status',
+                icon: Icons.people_outline,
+                color: AppTheme.primaryTeal,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const CitizenLoginScreen()),
+                  );
+                },
+              ),
+              const SizedBox(height: 20),
+              _RoleCard(
+                title: 'Authority',
+                subtitle: 'Review, Verify & Resolve Issues',
+                icon: Icons.shield_outlined,
+                color: AppTheme.statusBlue,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const AuthorityLoginScreen()),
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -57,12 +67,14 @@ class RoleSelectionScreen extends StatelessWidget {
 
 class _RoleCard extends StatelessWidget {
   final String title;
+  final String subtitle;
   final IconData icon;
   final Color color;
   final VoidCallback onTap;
 
   const _RoleCard({
     required this.title,
+    required this.subtitle,
     required this.icon,
     required this.color,
     required this.onTap,
@@ -70,26 +82,49 @@ class _RoleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 4,
+    return Material(
+      color: AppTheme.surfaceCard,
+      borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(24),
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
           child: Row(
             children: [
-              Icon(icon, size: 48, color: color),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, size: 32, color: color),
+              ),
               const SizedBox(width: 20),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: color,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const Spacer(),
-              Icon(Icons.arrow_forward_ios, color: color),
+              Icon(Icons.arrow_forward_ios, size: 16, color: color),
             ],
           ),
         ),

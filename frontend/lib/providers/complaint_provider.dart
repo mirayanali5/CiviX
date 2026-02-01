@@ -7,9 +7,30 @@ class ComplaintProvider with ChangeNotifier {
   Map<String, dynamic>? _selectedComplaint;
   bool _isLoading = false;
 
+  List<Map<String, dynamic>> _myComplaints = [];
   List<Map<String, dynamic>> get complaints => _complaints;
+  List<Map<String, dynamic>> get myComplaints => _myComplaints;
   Map<String, dynamic>? get selectedComplaint => _selectedComplaint;
   bool get isLoading => _isLoading;
+  bool _isLoadingMy = false;
+  bool get isLoadingMy => _isLoadingMy;
+
+  Future<void> fetchMyComplaints({String? status}) async {
+    _isLoadingMy = true;
+    notifyListeners();
+    try {
+      final response = await _apiService.getMyComplaints(status: status);
+      if (response.statusCode == 200 && response.data != null && response.data['complaints'] != null) {
+        _myComplaints = List<Map<String, dynamic>>.from(response.data['complaints']);
+      } else {
+        _myComplaints = [];
+      }
+    } catch (e) {
+      _myComplaints = [];
+    }
+    _isLoadingMy = false;
+    notifyListeners();
+  }
 
   Future<void> fetchComplaints({
     String? status,

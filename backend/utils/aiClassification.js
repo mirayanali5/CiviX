@@ -1,237 +1,233 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 require('dotenv').config();
 
+/* ===================== DEPARTMENTS ===================== */
+
 const DEPARTMENTS = [
   'GHMC Sanitation',
-  'GHMC Road & Engineering',
-  'HMWSSB (Water Board)',
-  'TSSPDCL (Electricity)',
+  'GHMC Road and Engineering',
+  'HMWSSB',
+  'TSSPDCL',
   'GHMC Town Planning',
   'GHMC Public Health / Entomology'
 ];
 
+/* ===================== KEYWORDS ===================== */
+/*
+  IMPORTANT DESIGN RULE:
+  - Keywords must indicate PRIMARY responsibility
+  - Avoid generic words like "smell" or "dirty"
+*/
+
 const KEYWORDS = {
   'GHMC Sanitation': [
-    'garbage', 'dustbin', 'trash', 'bins', 'smell', 'dumping', 'waste', 
-    'debris', 'cleaning', 'sweep', 'sanitation', 'refuse', 'overflowing', 
-    'Swachh Bharat', 'cleaning staff'
+    'garbage', 'trash', 'dustbin', 'dumping', 'waste',
+    'debris', 'cleaning', 'sweep', 'overflowing garbage'
   ],
-  'GHMC Road & Engineering': [
-    'road', 'pothole', 'street', 'damaged', 'construction', 'repair', 
-    'cracking', 'footpath', 'pavement', 'resurface', 'speed breaker', 
-    'culvert', 'manhole', 'dig'
+
+  'GHMC Road and Engineering': [
+    'road', 'pothole', 'street', 'damaged road', 'construction',
+    'repair', 'footpath', 'pavement', 'manhole', 'culvert'
   ],
-  'HMWSSB (Water Board)': [
-    'water', 'leak', 'drainage', 'sewer', 'overflow', 'pipeline', 
-    'contamination', 'sewage', 'dirty water', 'tap', 'borewell', 
-    'pipe burst', 'stagnation'
+
+  'HMWSSB': [
+    'water', 'leak', 'pipeline', 'pipe burst', 'sewer',
+    'drain', 'drainage', 'sewage', 'overflowing drain', 'contaminated water',
+    'stagnant water', 'open drain'
   ],
-  'TSSPDCL (Electricity)': [
-    'light', 'street light', 'pole', 'transformer', 'electric', 'cable', 
-    'wiring', 'spark', 'shock', 'power cut', 'fuse', 'bulb', 'dark', 'meter'
+
+  'TSSPDCL': [
+    'street light', 'electric', 'power cut', 'transformer',
+    'cable', 'wiring', 'pole', 'meter'
   ],
+
   'GHMC Town Planning': [
-    'illegal construction', 'encroachment', 'demolition', 'unauthorized', 
-    'building', 'structure', 'setback', 'boundary', 'commercial misuse', 
-    'banner', 'hoarding', 'advertisement'
+    'illegal construction', 'encroachment', 'unauthorized building',
+    'demolition', 'structure', 'setback', 'hoarding'
   ],
+
   'GHMC Public Health / Entomology': [
-    'mosquito', 'dengue', 'malaria', 'fever', 'stray dog', 'rat', 'pest', 
-    'insect', 'fogging', 'vaccination', 'animal cruelty', 'epidemic'
+    'mosquito', 'dengue', 'malaria', 'pest', 'stray dog',
+    'animal bite', 'fogging'
   ]
 };
 
-/**
- * Classify department using keyword matching first, then Gemini AI
- */
+/* ===================== MAIN CLASSIFIER ===================== */
+/*
+  PRESCRIBED LOGIC:
+  - If description has ONLY ONE keyword OR multiple keywords from the SAME department
+    → assign that department directly (no API call).
+  - If description has keywords from MULTIPLE departments OR NO keywords
+    → send description to Gemini with fixed prompt to pick the most appropriate department.
+*/
+
 async function classifyDepartment(description) {
   if (!description || typeof description !== 'string') {
     return { department: 'GHMC Sanitation', problem_type: 'General' };
   }
 
   const text = description.toLowerCase();
+
+  /* ---- STEP 1: Collect all departments that have at least one keyword match ---- */
+
   const matchedDepartments = [];
 
-  // Check keywords
-  for (const [dept, keywords] of Object.entries(KEYWORDS)) {
+  for (const [department, keywords] of Object.entries(KEYWORDS)) {
     for (const keyword of keywords) {
-      if (text.includes(keyword.toLowerCase())) {
-        if (!matchedDepartments.includes(dept)) {
-          matchedDepartments.push(dept);
-        }
-        break;
+      if (text.includes(keyword)) {
+        matchedDepartments.push(department);
+        break; // one match per department is enough
       }
     }
   }
 
-  // If exactly one department matched, return it
-  if (matchedDepartments.length === 1) {
-    return { 
-      department: matchedDepartments[0], 
-      problem_type: extractProblemType(description, matchedDepartments[0])
+  /* ---- STEP 2: Unique departments only (same department can match multiple keywords) ---- */
+
+  const uniqueDepartments = [...new Set(matchedDepartments)];
+
+  /* ---- STEP 3: Decision ---- */
+
+  // One department (one keyword or multiple keywords of same department) → assign directly
+  if (uniqueDepartments.length === 1) {
+    return {
+      department: uniqueDepartments[0],
+      problem_type: extractProblemType(description)
     };
   }
 
-  // If 0 or more than 1 matched, use Gemini
-  if (matchedDepartments.length === 0 || matchedDepartments.length > 1) {
-    return await classifyWithGemini(description, matchedDepartments);
+  // Zero or multiple different departments → Gemini analyzes and picks one
+  return await classifyWithGemini(description, uniqueDepartments);
+}
+
+/* ===================== GEMINI FALLBACK ===================== */
+/*
+  candidateDepartments: when multiple keywords match, pass those departments so Gemini
+  picks only among them. When no keywords match, pass empty and we use full DEPARTMENTS list.
+*/
+
+async function classifyWithGemini(description, candidateDepartments = []) {
+  const apiKey = process.env.GEMINI_API_KEY || process.env.GEMINI_KEY;
+
+  if (!apiKey) {
+    return fallbackDepartment(candidateDepartments);
   }
 
-  // Fallback
+  const allowedList = candidateDepartments.length > 0 ? candidateDepartments : DEPARTMENTS;
+
+  try {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const modelId = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+    const model = genAI.getGenerativeModel({ model: modelId });
+
+    const prompt = `
+You are a civic complaint router. You will receive a complaint description. Your job is to understand the context and select the ONE department that is primarily responsible for resolving it.
+
+Department responsibilities (understand the theme, not just keywords):
+- GHMC Sanitation: Solid waste, garbage collection, dustbins, sweeping, litter, debris from waste.
+- GHMC Road and Engineering: Roads, potholes, footpaths, pavements, road repair, road restoration, manholes (structural), anything where the road surface or road work is the main issue.
+- HMWSSB: Water supply, drainage, sewers, drains, sewage, stagnant water, pipe leaks, water logging, foul smell or issues caused by drains/sewage/water.
+- TSSPDCL: Electricity, street lights, power cuts, transformers, cables, poles, meters, electrical hazards.
+- GHMC Town Planning: Illegal or unauthorized construction, encroachment, demolition, building violations.
+- GHMC Public Health / Entomology: Mosquitoes, vector control, dengue, malaria, pests, stray animals, fogging.
+
+Instructions:
+- Read the complaint and identify the primary issue (root cause). If several things are mentioned, choose the department that owns the main problem.
+- Reply with exactly one department from the list below. Use the department name exactly as written.
+
+Allowed departments (choose exactly one):
+${allowedList.join('\n')}
+
+Complaint description:
+"${description}"
+
+Respond with ONLY a JSON object, no other text:
+{"department": "<exact department name from the list>", "problem_type": "<short category 1-3 words>"}
+`;
+
+    const result = await model.generateContent(prompt);
+    const responseText = (result.response && result.response.text()) || '';
+
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('Invalid Gemini response: no JSON found. Raw: ' + responseText.slice(0, 200));
+    }
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    const dept = (parsed.department && String(parsed.department).trim()) || '';
+
+    const matched = matchDepartment(dept, allowedList);
+    if (!matched) {
+      throw new Error('Department not in allowed list: "' + dept + '". Allowed: ' + allowedList.join(', '));
+    }
+
+    return {
+      department: matched,
+      problem_type: (parsed.problem_type && String(parsed.problem_type).trim()) || 'General'
+    };
+  } catch (error) {
+    console.error('[aiClassification] Gemini error:', error.message);
+    return fallbackDepartment(candidateDepartments);
+  }
+}
+
+function matchDepartment(given, allowedList) {
+  const n = (given || '').trim().toLowerCase();
+  if (!n) return null;
+  return allowedList.find((d) => d.trim().toLowerCase() === n) || null;
+}
+
+function fallbackDepartment(candidateDepartments) {
+  if (Array.isArray(candidateDepartments) && candidateDepartments.length > 0) {
+    return { department: candidateDepartments[0], problem_type: 'General' };
+  }
   return { department: 'GHMC Sanitation', problem_type: 'General' };
 }
 
-/**
- * Use Gemini AI to classify department
- */
-async function classifyWithGemini(description, matchedDepartments = []) {
-  try {
-    // Support both GEMINI_API_KEY and GEMINI_KEY
-    const apiKey = process.env.GEMINI_API_KEY || process.env.GEMINI_KEY;
-    if (!apiKey) {
-      console.warn('⚠️  Gemini API key not found. Using fallback.');
-      return { department: 'GHMC Sanitation', problem_type: 'General' };
-    }
+/* ===================== PROBLEM TYPE EXTRACTION ===================== */
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
-
-    const deptList = DEPARTMENTS.join(', ');
-    const prompt = `Given this complaint description: "${description}"
-
-Choose ONLY ONE department from this list: ${deptList}
-
-Also provide a short problem_type category (1-3 words).
-
-Respond in JSON format:
-{
-  "department": "exact department name from the list",
-  "problem_type": "short category"
-}
-
-If the description doesn't clearly match any department, default to "GHMC Sanitation".`;
-
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
-
-    // Try to parse JSON from response
-    try {
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        if (DEPARTMENTS.includes(parsed.department)) {
-          return {
-            department: parsed.department,
-            problem_type: parsed.problem_type || 'General'
-          };
-        }
-      }
-    } catch (e) {
-      console.error('Failed to parse Gemini response:', e);
-    }
-
-    // Fallback
-    return { department: 'GHMC Sanitation', problem_type: 'General' };
-  } catch (error) {
-    console.error('Gemini classification error:', error);
-    return { department: 'GHMC Sanitation', problem_type: 'General' };
-  }
-}
-
-function extractProblemType(description, department) {
-  // Simple extraction based on keywords
+function extractProblemType(description) {
   const text = description.toLowerCase();
+
   if (text.includes('pothole')) return 'Pothole';
-  if (text.includes('garbage') || text.includes('trash')) return 'Waste Management';
-  if (text.includes('water') || text.includes('leak')) return 'Water Issue';
-  if (text.includes('light') || text.includes('electric')) return 'Electrical Issue';
+  if (text.includes('garbage')) return 'Waste';
+  if (text.includes('sewer') || text.includes('drainage')) return 'Sewerage';
+  if (text.includes('water') || text.includes('leak')) return 'Water Supply';
+  if (text.includes('street light') || text.includes('electric')) return 'Electrical';
+  if (text.includes('mosquito')) return 'Vector Control';
+
   return 'General';
 }
 
-/**
- * Auto-generate tags based on department and description keywords
- */
+/* ===================== AUTO TAG GENERATION ===================== */
+
 function generateAutoTags(description, department) {
-  const tags = [];
+  const tags = new Set();
   const text = description.toLowerCase();
 
-  // Map departments to tag categories
-  const departmentTagMap = {
+  const departmentTags = {
     'GHMC Sanitation': 'Sanitation',
-    'GHMC Road & Engineering': 'Road',
-    'HMWSSB (Water Board)': 'Water',
-    'TSSPDCL (Electricity)': 'Electricity',
+    'GHMC Road and Engineering': 'Road',
+    'HMWSSB': 'Water',
+    'TSSPDCL': 'Electricity',
     'GHMC Town Planning': 'Town Planning',
     'GHMC Public Health / Entomology': 'Public Health'
   };
 
-  // Add department-based tag
-  if (departmentTagMap[department]) {
-    tags.push(departmentTagMap[department]);
+  if (departmentTags[department]) {
+    tags.add(departmentTags[department]);
   }
 
-  // Add specific issue tags based on keywords
-  const keywordTagMap = {
-    // Road issues
-    'pothole': 'Road',
-    'road': 'Road',
-    'street': 'Road',
-    'footpath': 'Road',
-    'pavement': 'Road',
-    'speed breaker': 'Road',
-    'manhole': 'Road',
-    
-    // Sanitation issues
-    'garbage': 'Sanitation',
-    'trash': 'Sanitation',
-    'dustbin': 'Sanitation',
-    'waste': 'Sanitation',
-    'dumping': 'Sanitation',
-    'cleaning': 'Sanitation',
-    
-    // Water issues
-    'water': 'Water',
-    'leak': 'Water',
-    'drainage': 'Water',
-    'sewer': 'Water',
-    'pipeline': 'Water',
-    'pipe burst': 'Water',
-    
-    // Electricity issues
-    'light': 'Electricity',
-    'street light': 'Electricity',
-    'electric': 'Electricity',
-    'power cut': 'Electricity',
-    'transformer': 'Electricity',
-    
-    // Town Planning
-    'illegal construction': 'Town Planning',
-    'encroachment': 'Town Planning',
-    'building': 'Town Planning',
-    
-    // Public Health
-    'mosquito': 'Public Health',
-    'dengue': 'Public Health',
-    'stray dog': 'Public Health',
-    'pest': 'Public Health'
-  };
+  if (text.includes('pothole')) tags.add('Road');
+  if (text.includes('garbage')) tags.add('Sanitation');
+  if (text.includes('water') || text.includes('sewer')) tags.add('Water');
+  if (text.includes('electric') || text.includes('light')) tags.add('Electricity');
+  if (text.includes('mosquito')) tags.add('Public Health');
 
-  // Check for keyword matches and add tags
-  for (const [keyword, tag] of Object.entries(keywordTagMap)) {
-    if (text.includes(keyword.toLowerCase())) {
-      if (!tags.includes(tag)) {
-        tags.push(tag);
-      }
-    }
-  }
-
-  // If no tags found, use department tag as fallback
-  if (tags.length === 0 && departmentTagMap[department]) {
-    tags.push(departmentTagMap[department]);
-  }
-
-  return tags;
+  return Array.from(tags);
 }
 
-module.exports = { classifyDepartment, DEPARTMENTS, generateAutoTags };
+module.exports = {
+  classifyDepartment,
+  generateAutoTags,
+  DEPARTMENTS
+};

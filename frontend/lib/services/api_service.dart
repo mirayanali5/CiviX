@@ -2,20 +2,15 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../config/api_config.dart';
+
 class ApiService {
-  // IMPORTANT: Change this to your computer's IP address for mobile testing
-  // Format: http://YOUR_IP_ADDRESS:8080/api
-  // Example: http://192.168.1.100:8080/api
-  // 
-  // To find your IP:
-  // Windows: ipconfig (look for IPv4 Address)
-  // Mac/Linux: ifconfig or ip addr show
-  static const String baseUrl = 'http://192.168.0.107:8080/api'; // TODO: Replace YOUR_IP_ADDRESS with your computer's IP
+  static String get baseUrl => ApiConfig.baseUrl;
   late Dio _dio;
 
   ApiService() {
     _dio = Dio(BaseOptions(
-      baseUrl: baseUrl,
+      baseUrl: ApiConfig.baseUrl,
       connectTimeout: const Duration(seconds: 30),
       receiveTimeout: const Duration(seconds: 30),
     ));

@@ -37,6 +37,22 @@ async function uploadToSupabase(file, bucketName) {
   return urlData.publicUrl;
 }
 
+/** Build list of department values to match (e.g. "HMWSSB" and "HMWSSB (Water Board)") */
+function departmentMatchVariants(department) {
+  const d = (department || '').toString().trim();
+  if (!d) return [];
+  const variants = [
+    d,
+    d + ' (Water Board)',
+    d + ' (Electricity)',
+    d + ' (Sanitation)',
+    d + ' (Road and Engineering)',
+    d + ' (Town Planning)',
+    d + ' (Public Health / Entomology)',
+  ];
+  return [...new Set(variants)];
+}
+
 // Get authority dashboard stats
 router.get('/dashboard', requireAuthority, async (req, res) => {
   try {
@@ -52,17 +68,19 @@ router.get('/dashboard', requireAuthority, async (req, res) => {
       return res.status(400).json({ error: 'Department not assigned to this authority user' });
     }
 
-    const department = profileResult.rows[0].department;
+    const department = (profileResult.rows[0].department || '').toString().trim();
+    const departmentVariants = departmentMatchVariants(department);
+    const inPlaceholders = departmentVariants.map((_, i) => `$${i + 1}`).join(', ');
 
     const statsResult = await pool.query(
       `SELECT 
         COUNT(*) FILTER (WHERE LOWER(status) = 'open') as open,
-        COUNT(*) FILTER (WHERE LOWER(status) = 'open') as in_progress, -- Your schema only has 'open' and 'resolved'
+        COUNT(*) FILTER (WHERE LOWER(status) = 'open') as in_progress,
         COUNT(*) FILTER (WHERE LOWER(status) = 'resolved') as resolved,
         COUNT(*) as total
        FROM complaints
-       WHERE department = $1`,
-      [department]
+       WHERE department IN (${inPlaceholders})`,
+      departmentVariants
     );
 
     console.log('Dashboard stats for department:', department, statsResult.rows[0]);
@@ -92,9 +110,14 @@ router.get('/complaints', requireAuthority, async (req, res) => {
       return res.status(400).json({ error: 'Department not assigned to this authority user' });
     }
 
-    const department = profileResult.rows[0].department;
+    const department = (profileResult.rows[0].department || '').toString().trim();
     const { status, limit = 50, offset = 0 } = req.query;
+    const departmentVariants = departmentMatchVariants(department);
+    if (departmentVariants.length === 0) {
+      return res.json({ complaints: [], total: 0 });
+    }
 
+    const inPlaceholders = departmentVariants.map((_, i) => `$${i + 1}`).join(', ');
     let query = `
       SELECT c.*, 
         COUNT(DISTINCT u.id) as upvote_count,
@@ -103,10 +126,10 @@ router.get('/complaints', requireAuthority, async (req, res) => {
       FROM complaints c
       LEFT JOIN upvotes u ON c.id = u.complaint_id
       LEFT JOIN profiles p ON c.user_id = p.id
-      WHERE c.department = $1
+      WHERE c.department IN (${inPlaceholders})
     `;
-    const params = [department];
-    let paramIndex = 2;
+    const params = [...departmentVariants];
+    let paramIndex = departmentVariants.length + 1;
 
     if (status) {
       // Normalize status to lowercase to match schema
@@ -125,12 +148,14 @@ router.get('/complaints', requireAuthority, async (req, res) => {
                LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
     params.push(parseInt(limit), parseInt(offset));
 
-    console.log('Fetching complaints for department:', department);
-    console.log('Query params:', params);
+    console.log('Authority complaints: department=', department, 'variants=', departmentVariants);
 
     const result = await pool.query(query, params);
 
-    console.log(`Found ${result.rows.length} complaints for department ${department}`);
+    console.log('Authority complaints result: found', result.rows.length, 'rows');
+    if (result.rows.length > 0) {
+      console.log('First complaint id:', result.rows[0].id, 'department:', result.rows[0].department);
+    }
 
     res.json({
       complaints: result.rows,
@@ -162,7 +187,9 @@ router.get('/complaints/:id', requireAuthority, async (req, res) => {
       return res.status(400).json({ error: 'Department not assigned to this authority user' });
     }
 
-    const department = profileResult.rows[0].department;
+    const department = (profileResult.rows[0].department || '').toString().trim();
+    const departmentVariants = departmentMatchVariants(department);
+    const inPlaceholders = departmentVariants.map((_, i) => `$${i + 2}`).join(', ');
 
     const result = await pool.query(
       `SELECT c.*, 
@@ -172,12 +199,12 @@ router.get('/complaints/:id', requireAuthority, async (req, res) => {
        FROM complaints c
        LEFT JOIN upvotes u ON c.id = u.complaint_id
        LEFT JOIN profiles p ON c.user_id = p.id
-       WHERE c.id = $1::uuid AND c.department = $2
+       WHERE c.id = $1::uuid AND c.department IN (${inPlaceholders})
        GROUP BY c.id, c.user_id, c.guest_id, c.description, c.transcript, c.translated_text, 
                 c.image_url, c.audio_url, c.department, c.tags, c.latitude, c.longitude, 
                 c.status, c.report_count, c.created_at, c.updated_at, c.is_duplicate, 
                 c.parent_complaint_id, p.full_name, p.account_type`,
-      [id, department]
+      [id, ...departmentVariants]
     );
 
     console.log('Get complaint for resolution:', id, 'department:', department);
@@ -211,9 +238,9 @@ router.patch('/complaints/:id/status', requireAuthority, async (req, res) => {
       return res.status(400).json({ error: 'Department not assigned to this authority user' });
     }
 
-    const department = profileResult.rows[0].department;
+    const department = (profileResult.rows[0].department || '').toString().trim();
+    const departmentVariants = departmentMatchVariants(department);
 
-    // Convert status to lowercase to match your schema
     const normalizedStatus = status.toLowerCase();
     if (!['open', 'resolved'].includes(normalizedStatus)) {
       return res.status(400).json({ error: 'Invalid status. Use "open" or "resolved"' });
@@ -222,9 +249,9 @@ router.patch('/complaints/:id/status', requireAuthority, async (req, res) => {
     const result = await pool.query(
       `UPDATE complaints 
        SET status = $1, updated_at = now()
-       WHERE id = $2::uuid AND department = $3
+       WHERE id = $2::uuid AND department = ANY($3::text[])
        RETURNING *`,
-      [normalizedStatus, id, department]
+      [normalizedStatus, id, departmentVariants]
     );
 
     if (result.rows.length === 0) {
@@ -256,16 +283,17 @@ router.post('/complaints/:id/resolve', requireAuthority, upload.array('photos', 
       return res.status(400).json({ error: 'Department not assigned to this authority user' });
     }
 
-    const department = profileResult.rows[0].department;
+    const department = (profileResult.rows[0].department || '').toString().trim();
+    const departmentVariants = departmentMatchVariants(department);
+    const inPlaceholders = departmentVariants.map((_, i) => `$${i + 2}`).join(', ');
 
     if (photos.length === 0) {
       return res.status(400).json({ error: 'At least one resolution photo is required' });
     }
 
-    // Verify complaint belongs to authority's department
     const complaintResult = await pool.query(
-      'SELECT * FROM complaints WHERE id = $1::uuid AND department = $2',
-      [id, department]
+      `SELECT * FROM complaints WHERE id = $1::uuid AND department IN (${inPlaceholders})`,
+      [id, ...departmentVariants]
     );
 
     console.log('Resolving complaint:', id, 'for department:', department);

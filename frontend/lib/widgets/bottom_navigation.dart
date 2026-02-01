@@ -3,21 +3,25 @@ import 'package:flutter/material.dart';
 class BottomNavigation extends StatelessWidget {
   final int currentIndex;
   final Function(int) onTap;
+  /// When true, second tab shows "Resolution" instead of "New Report" (Authority).
+  final bool isAuthority;
 
   const BottomNavigation({
     super.key,
     required this.currentIndex,
     required this.onTap,
+    this.isAuthority = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF1A202C), // Dark background
+        color: isDark ? const Color(0xFF1A202C) : Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withOpacity(isDark ? 0.2 : 0.08),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),
@@ -39,9 +43,9 @@ class BottomNavigation extends StatelessWidget {
               ),
               _buildNavItem(
                 context,
-                icon: Icons.add_circle_outline,
-                activeIcon: Icons.add_circle,
-                label: 'New Report',
+                icon: isAuthority ? Icons.assignment_outlined : Icons.add_circle_outline,
+                activeIcon: isAuthority ? Icons.assignment : Icons.add_circle,
+                label: isAuthority ? 'Resolution' : 'New Report',
                 index: 1,
               ),
               _buildNavItem(
@@ -73,7 +77,8 @@ class BottomNavigation extends StatelessWidget {
     required int index,
   }) {
     final isActive = currentIndex == index;
-    final activeColor = const Color(0xFF00FFCC); // Teal color from design
+    final activeColor = Theme.of(context).colorScheme.primary;
+    final inactiveColor = Theme.of(context).brightness == Brightness.dark ? Colors.grey : Colors.grey.shade600;
 
     return Expanded(
       child: InkWell(
@@ -84,7 +89,7 @@ class BottomNavigation extends StatelessWidget {
           children: [
             Icon(
               isActive ? activeIcon : icon,
-              color: isActive ? activeColor : Colors.grey,
+              color: isActive ? activeColor : inactiveColor,
               size: 24,
             ),
             const SizedBox(height: 4),
@@ -92,7 +97,7 @@ class BottomNavigation extends StatelessWidget {
               label,
               style: TextStyle(
                 fontSize: 12,
-                color: isActive ? activeColor : Colors.grey,
+                color: isActive ? activeColor : inactiveColor,
                 fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
               ),
             ),

@@ -318,7 +318,33 @@ router.get('/:id', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Complaint not found' });
     }
 
-    res.json({ complaint: result.rows[0] });
+    const complaint = result.rows[0];
+
+    // Include resolution photos for citizens when complaint is resolved
+    if (complaint.status && complaint.status.toLowerCase() === 'resolved') {
+      try {
+        const resResult = await pool.query(
+          'SELECT * FROM resolutions WHERE complaint_id = $1::uuid ORDER BY resolved_at DESC LIMIT 1',
+          [id]
+        );
+        if (resResult.rows.length > 0) {
+          const r = resResult.rows[0];
+          if (r.images != null) {
+            complaint.resolution_photos = Array.isArray(r.images) ? r.images : [r.images];
+          } else if (r.photo_url) {
+            complaint.resolution_photos = [r.photo_url];
+          } else {
+            complaint.resolution_photos = [];
+          }
+          complaint.resolution_notes = r.notes || '';
+          complaint.resolved_at = r.resolved_at;
+        }
+      } catch (resErr) {
+        console.warn('Resolution fetch for complaint:', resErr.message);
+      }
+    }
+
+    res.json({ complaint });
   } catch (error) {
     console.error('Get complaint error:', error);
     res.status(500).json({ error: 'Internal server error' });

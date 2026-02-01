@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const path = require('path');
+const os = require('os');
 
 // Load environment variables
 dotenv.config();
@@ -35,18 +36,21 @@ const authRoutes = require('./routes/auth');
 const complaintRoutes = require('./routes/complaints');
 const userRoutes = require('./routes/users');
 const authorityRoutes = require('./routes/authority');
+const { authenticateToken } = require('./middleware/auth');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/complaints', complaintRoutes);
 app.use('/api/users', userRoutes);
-app.use('/api/authority', authorityRoutes);
+// Authority routes require JWT verification first so req.user is set for requireAuthority
+app.use('/api/authority', authenticateToken, authorityRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'CiviX API Server is running' });
 });
 
-app.listen(PORT, () => {
+// Bind to 0.0.0.0 so mobile on same Wi‑Fi can connect
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 CiviX Backend Server running on port ${PORT}`);
   console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🗄️  Database: ${process.env.DATABASE_URL ? '✅ Configured' : '❌ Not configured'}`);
@@ -58,5 +62,20 @@ app.listen(PORT, () => {
     console.log(`   Using: ${process.env.JWT_SECRET ? 'JWT_SECRET' : 'SUPABASE_JWT_SECRET'}`);
   }
   console.log(`\n✅ Server is ready to accept connections!`);
-  console.log(`   Health check: http://localhost:${PORT}/api/health\n`);
+  console.log(`   Local:   http://localhost:${PORT}/api/health`);
+  const localIp = getLocalNetworkIp();
+  if (localIp) {
+    console.log(`   Mobile: http://${localIp}:${PORT}/api  ← use this in frontend/lib/config/api_config.dart`);
+  }
+  console.log('');
 });
+
+function getLocalNetworkIp() {
+  const ifaces = os.networkInterfaces();
+  for (const name of Object.keys(ifaces)) {
+    for (const iface of ifaces[name]) {
+      if (iface.family === 'IPv4' && !iface.internal) return iface.address;
+    }
+  }
+  return null;
+}

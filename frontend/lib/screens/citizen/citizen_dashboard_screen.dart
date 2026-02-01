@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../config/app_theme.dart';
 import '../../providers/complaint_provider.dart';
 import '../../services/api_service.dart';
 import '../../widgets/bottom_navigation.dart';
@@ -7,6 +8,7 @@ import 'lodge_complaint_screen.dart';
 import 'complaint_details_screen.dart';
 import 'citizen_map_screen.dart';
 import 'citizen_profile_screen.dart';
+import 'citizen_history_screen.dart';
 import '../../utils/map_utils.dart';
 
 class CitizenDashboardScreen extends StatefulWidget {
@@ -65,14 +67,14 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen> {
         });
         break;
       case 2:
-        // History - navigate to profile/history
+        // History - my complaints only
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const CitizenProfileScreen()),
+          MaterialPageRoute(builder: (_) => const CitizenHistoryScreen()),
         );
         break;
       case 3:
-        // Settings - navigate to profile
+        // Settings
         Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const CitizenProfileScreen()),
@@ -85,10 +87,10 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('CiviX Dashboard'),
+        title: const Text('Dashboard'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.map),
+            icon: const Icon(Icons.map_outlined),
             onPressed: () {
               Navigator.push(
                 context,
@@ -100,16 +102,16 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: _loadDashboard,
+        color: AppTheme.primaryTeal,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Stats Cards
               if (_stats != null) _buildStatsCards(),
-              const SizedBox(height: 16),
-              // New Complaint Button
+              const SizedBox(height: 20),
               Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
@@ -119,51 +121,45 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen> {
                         MaterialPageRoute(builder: (_) => const LodgeComplaintScreen()),
                       );
                     },
-                    icon: const Icon(Icons.add_circle),
-                    label: const Text('New Complaint'),
+                    icon: const Icon(Icons.add, size: 22),
+                    label: const Text('FILE NEW COMPLAINT'),
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
+                      backgroundColor: AppTheme.primaryTeal,
+                      foregroundColor: Colors.black87,
                     ),
                   ),
                 ),
               ),
-              // Search Bar
+              const SizedBox(height: 24),
               Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: 'Search complaints...',
-                    prefixIcon: const Icon(Icons.search),
-                    suffixIcon: _searchQuery.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear),
-                            onPressed: () {
-                              _searchController.clear();
-                              setState(() {
-                                _searchQuery = '';
-                              });
-                              _loadDashboard();
-                            },
-                          )
-                        : null,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  'Nearby Open Complaints (Trending)',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
                   ),
-                  onSubmitted: (value) {
-                    setState(() {
-                      _searchQuery = value;
-                    });
-                    _loadDashboard();
-                  },
                 ),
               ),
-              // Complaints List
+              const SizedBox(height: 4),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  'Upvote issues that matter most to you to increase visibility.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
               _buildComplaintsList(),
             ],
           ),
         ),
+      ),
+      bottomNavigationBar: BottomNavigation(
+        currentIndex: _currentNavIndex,
+        onTap: _onNavTap,
       ),
     );
   }
@@ -171,30 +167,42 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen> {
   Widget _buildStatsCards() {
     return Padding(
       padding: const EdgeInsets.all(16.0),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: _StatCard(
-              title: 'Open',
-              value: _stats!['open_complaints']?.toString() ?? '0',
-              color: Colors.orange,
+          Text(
+            'My Report Metrics',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              color: AppTheme.textSecondary,
             ),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _StatCard(
-              title: 'Resolved',
-              value: _stats!['resolved_complaints']?.toString() ?? '0',
-              color: Colors.green,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _StatCard(
-              title: 'Total',
-              value: _stats!['total_complaints']?.toString() ?? '0',
-              color: Colors.blue,
-            ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _StatCard(
+                  title: 'Open',
+                  value: _stats!['open_complaints']?.toString() ?? '0',
+                  color: AppTheme.statusOrange,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _StatCard(
+                  title: 'Resolved',
+                  value: _stats!['resolved_complaints']?.toString() ?? '0',
+                  color: AppTheme.primaryTeal,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _StatCard(
+                  title: 'Total',
+                  value: _stats!['total_complaints']?.toString() ?? '0',
+                  color: AppTheme.surfaceCardElevated,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -207,15 +215,18 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen> {
         if (provider.isLoading) {
           return const Padding(
             padding: EdgeInsets.all(32.0),
-            child: Center(child: CircularProgressIndicator()),
+            child: Center(child: CircularProgressIndicator(color: AppTheme.primaryTeal)),
           );
         }
 
         if (provider.complaints.isEmpty) {
-          return const Padding(
-            padding: EdgeInsets.all(32.0),
+          return Padding(
+            padding: const EdgeInsets.all(32.0),
             child: Center(
-              child: Text('No complaints found'),
+              child: Text(
+                'No complaints found',
+                style: TextStyle(color: AppTheme.textSecondary),
+              ),
             ),
           );
         }
@@ -235,6 +246,19 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen> {
                     builder: (_) => ComplaintDetailsScreen(complaintId: complaint['id']),
                   ),
                 );
+              },
+              onUpvote: () async {
+                final success = await provider.upvoteComplaint(complaint['id']);
+                if (success && mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Upvoted!'),
+                      backgroundColor: AppTheme.primaryTeal,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                  await provider.fetchComplaints();
+                }
               },
             );
           },
@@ -257,30 +281,33 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      color: color.withOpacity(0.1),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+      decoration: BoxDecoration(
+        color: color == AppTheme.surfaceCardElevated
+            ? AppTheme.surfaceCard
+            : color.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: color == AppTheme.surfaceCardElevated ? AppTheme.textPrimary : color,
             ),
-            const SizedBox(height: 4),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 12,
-                color: color,
-              ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 12,
+              color: color == AppTheme.surfaceCardElevated ? AppTheme.textSecondary : color,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -289,10 +316,12 @@ class _StatCard extends StatelessWidget {
 class _ComplaintCard extends StatelessWidget {
   final Map<String, dynamic> complaint;
   final VoidCallback onTap;
+  final VoidCallback? onUpvote;
 
   const _ComplaintCard({
     required this.complaint,
     required this.onTap,
+    this.onUpvote,
   });
 
   String _getReporterName() {
@@ -306,112 +335,182 @@ class _ComplaintCard extends StatelessWidget {
   }
 
   Color _getStatusColor(String? status) {
-    switch (status) {
-      case 'Open':
-        return Colors.orange;
-      case 'In-Progress':
-        return Colors.blue;
-      case 'Resolved':
-        return Colors.green;
-      default:
-        return Colors.grey;
-    }
+    final s = (status ?? '').toString();
+    if (s == 'Open') return AppTheme.statusOrange;
+    if (s == 'In-Progress') return AppTheme.statusBlue;
+    if (s == 'Resolved') return AppTheme.statusGreen;
+    return AppTheme.textSecondary;
   }
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    final status = complaint['status'] ?? 'Open';
+    return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceCard,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(14.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 16,
+                      backgroundColor: AppTheme.surfaceCardElevated,
+                      child: Text(
+                        _getReporterName().isNotEmpty ? _getReporterName()[0].toUpperCase() : '?',
+                        style: const TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _getReporterName(),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _getStatusColor(status).withOpacity(0.25),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        status.toUpperCase().replaceAll('-', '-'),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: _getStatusColor(status),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Posted ${complaint['created_at'] != null ? _timeAgo(complaint['created_at']) : '?'} | ID: ${complaint['id'] != null ? (complaint['id'] as String).length >= 8 ? (complaint['id'] as String).substring(0, 8) : complaint['id'] : '—'}',
+                  style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                ),
+                const SizedBox(height: 10),
+                if (complaint['photo_url'] != null || complaint['image_url'] != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.network(
+                        complaint['photo_url'] ?? complaint['image_url'],
+                        height: 140,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          height: 140,
+                          color: AppTheme.surfaceCardElevated,
+                          child: const Icon(Icons.image_not_supported,
+                              color: AppTheme.textSecondary),
+                        ),
+                      ),
+                    ),
+                  ),
+                Text(
+                  complaint['transcript'] ?? 'No description',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                if (complaint['department'] != null) ...[
+                  const SizedBox(height: 8),
                   Chip(
                     label: Text(
-                      complaint['status'] ?? 'Open',
-                      style: const TextStyle(fontSize: 10),
+                      complaint['department'],
+                      style: const TextStyle(fontSize: 11),
                     ),
-                    backgroundColor: _getStatusColor(complaint['status']).withOpacity(0.2),
-                  ),
-                  const Spacer(),
-                  Text(
-                    _getReporterName(),
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    backgroundColor: AppTheme.surfaceCardElevated,
+                    padding: EdgeInsets.zero,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
                 ],
-              ),
-              const SizedBox(height: 8),
-              if (complaint['image_url'] != null || complaint['photo_url'] != null)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.network(
-                    complaint['image_url'] ?? complaint['photo_url'],
-                    height: 150,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        height: 150,
-                        color: Colors.grey[300],
-                        child: const Icon(Icons.image_not_supported),
-                      );
-                    },
-                  ),
-                ),
-              const SizedBox(height: 8),
-              Text(
-                complaint['transcript'] ?? 'No description',
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 4),
-              if (complaint['department'] != null)
-                Chip(
-                  label: Text(
-                    complaint['department'],
-                    style: const TextStyle(fontSize: 10),
-                  ),
-                ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  const Icon(Icons.thumb_up, size: 16, color: Colors.blue),
-                  const SizedBox(width: 4),
-                  Text('${complaint['upvote_count'] ?? 0}'),
-                  const Spacer(),
-                  TextButton.icon(
-                    onPressed: () {
-                      final lat = complaint['latitude'] ?? complaint['gps_lat'];
-                      final lon = complaint['longitude'] ?? complaint['gps_long'];
-                      if (lat != null && lon != null) {
-                        MapUtils.openGoogleMaps(lat, lon);
-                      }
-                    },
-                    icon: const Icon(Icons.location_on, size: 16),
-                    label: Text(
-                      () {
-                        final lat = complaint['latitude'] ?? complaint['gps_lat'];
-                        final lon = complaint['longitude'] ?? complaint['gps_long'];
-                        if (lat != null && lon != null) {
-                          return '${(lat as num).toDouble().toStringAsFixed(4)}, ${(lon as num).toDouble().toStringAsFixed(4)}';
-                        }
-                        return 'Location not available';
-                      }(),
-                      style: const TextStyle(fontSize: 12),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    const Icon(Icons.location_on_outlined, size: 14, color: AppTheme.textSecondary),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        () {
+                          final lat = complaint['latitude'] ?? complaint['gps_lat'];
+                          final lon = complaint['longitude'] ?? complaint['gps_long'];
+                          if (lat != null && lon != null) {
+                            return '${(lat as num).toDouble().toStringAsFixed(4)}...';
+                          }
+                          return 'Location not available';
+                        }(),
+                        style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ],
+                    InkWell(
+                      onTap: onUpvote,
+                      borderRadius: BorderRadius.circular(20),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.favorite_border,
+                              size: 18,
+                              color: AppTheme.primaryTeal,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${complaint['upvote_count'] ?? 0}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppTheme.primaryTeal,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
+  }
+
+  String _timeAgo(dynamic date) {
+    if (date == null) return '?';
+    try {
+      final d = DateTime.parse(date.toString());
+      final diff = DateTime.now().difference(d);
+      if (diff.inDays > 0) return '${diff.inDays} day${diff.inDays == 1 ? '' : 's'} ago';
+      if (diff.inHours > 0) return '${diff.inHours} hour${diff.inHours == 1 ? '' : 's'} ago';
+      if (diff.inMinutes > 0) return '${diff.inMinutes} min ago';
+      return 'Just now';
+    } catch (_) {
+      return '?';
+    }
   }
 }

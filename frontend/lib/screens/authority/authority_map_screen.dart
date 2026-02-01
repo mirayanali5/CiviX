@@ -112,11 +112,20 @@ class _AuthorityMapScreenState extends State<AuthorityMapScreen> {
 
       final response = await _apiService.getDepartmentComplaints();
       if (response.statusCode == 200) {
+        final raw = response.data is Map ? response.data['complaints'] : null;
+        final list = raw is List
+            ? raw.map((e) => e is Map ? Map<String, dynamic>.from(e) : <String, dynamic>{}).toList()
+            : <Map<String, dynamic>>[];
         setState(() {
-          _complaints = List<Map<String, dynamic>>.from(response.data['complaints']);
+          _complaints = list;
           _isLoading = false;
         });
         await _updateMarkers(_complaints);
+      } else {
+        setState(() {
+          _complaints = [];
+          _isLoading = false;
+        });
       }
     } catch (e) {
       print('Load map error: $e');

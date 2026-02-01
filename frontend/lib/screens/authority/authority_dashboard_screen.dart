@@ -43,9 +43,10 @@ class _AuthorityDashboardScreenState extends State<AuthorityDashboardScreen> {
       final complaintsResponse = await _apiService.getDepartmentComplaints();
       if (complaintsResponse.statusCode == 200) {
         final data = complaintsResponse.data;
+        final raw = data is Map ? data['complaints'] : null;
         setState(() {
-          _complaints = data != null && data['complaints'] != null
-              ? List<Map<String, dynamic>>.from(data['complaints'])
+          _complaints = raw is List
+              ? raw.map((e) => e is Map ? Map<String, dynamic>.from(e) : <String, dynamic>{}).toList()
               : [];
         });
       } else {
@@ -127,6 +128,7 @@ class _AuthorityDashboardScreenState extends State<AuthorityDashboardScreen> {
             ),
       bottomNavigationBar: BottomNavigation(
         currentIndex: _currentNavIndex,
+        isAuthority: true,
         onTap: (index) {
           setState(() {
             _currentNavIndex = index;
@@ -136,17 +138,15 @@ class _AuthorityDashboardScreenState extends State<AuthorityDashboardScreen> {
               // Dashboard - already here
               break;
             case 1:
-              // New Report - not applicable for authority
+              // Resolution - already on dashboard (department complaints)
               break;
             case 2:
-              // History
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const AuthorityHistoryScreen()),
               );
               break;
             case 3:
-              // Settings
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const AuthorityProfileScreen()),
@@ -338,7 +338,7 @@ class _ComplaintCard extends StatelessWidget {
                 ),
               const SizedBox(height: 8),
               Text(
-                complaint['description'] ?? complaint['transcript'] ?? complaint['translated_text'] ?? 'No description',
+                complaint['transcript'] ?? 'No description',
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontWeight: FontWeight.bold),

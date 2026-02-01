@@ -53,8 +53,9 @@ class _CitizenSignupScreenState extends State<CitizenSignupScreen> {
         MaterialPageRoute(builder: (_) => const CitizenDashboardScreen()),
       );
     } else if (mounted) {
+      final msg = authProvider.lastErrorMessage ?? 'Signup failed. Please try again.';
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Signup failed. Please try again.')),
+        SnackBar(content: Text(msg), backgroundColor: Colors.red.shade700),
       );
     }
   }

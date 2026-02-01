@@ -86,7 +86,7 @@ router.get('/profile', requireAuth, async (req, res) => {
     const userId = req.user.id;
 
     const result = await pool.query(
-      `SELECT id, full_name as name, email, role, account_type, created_at,
+      `SELECT id, full_name as name, email, role, account_type, department, created_at,
         (SELECT COUNT(*) FROM complaints WHERE user_id = $1::uuid) as total_complaints
        FROM profiles
        WHERE id = $1::uuid`,
