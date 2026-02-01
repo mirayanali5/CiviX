@@ -14,14 +14,19 @@ if (databaseUrl && databaseUrl.startsWith('postgresql://')) {
   try {
     const url = new URL(databaseUrl);
     const hostname = url.hostname;
-    // Skip if already an IP
-    if (hostname && !/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) && !hostname.startsWith('[')) {
+    // Skip if already an IP; skip pooler (often has IPv4)
+    const isPooler = hostname && hostname.includes('pooler.supabase.com');
+    const isIp = hostname && /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname);
+    if (hostname && !isIp && !hostname.startsWith('[') && !isPooler) {
       const ipv4 = dns.lookupSync(hostname, { family: 4 });
       url.hostname = ipv4;
       databaseUrl = url.toString();
     }
   } catch (e) {
-    // Keep original URL if resolution fails
+    // Host likely has no IPv4 (e.g. Supabase direct db.xxx.supabase.co). Use pooler URL instead.
+    console.warn('⚠️  DB host has no IPv4; connection may fail on Render.');
+    console.warn('   Fix: In Render → Environment, set DATABASE_URL to Supabase Connection pooler (Session mode) URL.');
+    console.warn('   Get it: Supabase Dashboard → Project Settings → Database → Connection pooling → Session mode → URI');
   }
 }
 
@@ -30,12 +35,10 @@ const pool = new Pool({
   ssl: {
     rejectUnauthorized: false // Required for Supabase connections
   },
-  // Connection pool settings for faster startup
-  max: 10, // Maximum number of clients in the pool
-  idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
-  connectionTimeoutMillis: 10000, // Increased to 10 seconds for IPv6 connections
-  // Force IPv4 if IPv6 is causing issues
-  // Note: Node.js pg library should handle this automatically, but we can set keepAlive
+  // Connection pool settings
+  max: 10,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 30000, // 30s for cross-region (e.g. Render → Supabase pooler ap-south-1)
   keepAlive: true,
   keepAliveInitialDelayMillis: 10000,
 });
@@ -45,20 +48,18 @@ pool.on('error', (err) => {
   // Don't exit process, just log the error
 });
 
-// Test database connection asynchronously (non-blocking startup)
+// Test database connection after a short delay (lets server finish startup)
 setTimeout(() => {
   if (!databaseUrl) {
     console.warn('⚠️  DATABASE_URL not set - skipping connection test');
     return;
   }
 
-  // Extract hostname from connection string for better error messages
   let hostname = 'unknown';
   try {
     const url = new URL(databaseUrl);
     hostname = url.hostname;
   } catch (e) {
-    // If URL parsing fails, try to extract from connection string
     const match = databaseUrl.match(/@([^:]+)/);
     if (match) hostname = match[1];
   }

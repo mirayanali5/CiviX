@@ -130,7 +130,30 @@ The repo includes a `render.yaml` Blueprint that defines the backend service.
 | App can’t reach API | Confirm `frontend/lib/config/api_config.dart` `baseUrl` is exactly `https://...onrender.com/api` (with `/api`). |
 | CORS errors (e.g. from a web app) | Add `ALLOWED_ORIGINS` in Render (e.g. `*` or your frontend origin). |
 | 503 or long first load | Normal on free tier after idle; wait for the instance to wake up. |
-| **Database ENETUNREACH** (Supabase IPv6) | The backend resolves the DB host to IPv4 in `config/database.js` before connecting. Push the latest code and redeploy. If it still fails, use Supabase’s **Connection pooler** (Session mode) URL from Project Settings → Database; the pooler host often resolves to IPv4. |
+| **Database ENETUNREACH** (Supabase IPv6) | Use Supabase’s **Connection pooler** URL instead of the direct DB URL. See **Fix DB connection (ENETUNREACH)** below. |
+
+---
+
+## Fix DB connection (ENETUNREACH / IPv6)
+
+Supabase says: *"Direct connections to the database only work if your client is able to resolve IPv6 addresses. If you are connecting via the **Shared connection pooler**, you do not need [the IPv4 add-on] as our pooler resolves to IPv4 addresses."*
+
+Render cannot reach Supabase’s **direct** host (`db.xxx.supabase.co`) over IPv6, so use the **Shared connection pooler** URL instead:
+
+1. Open **[Supabase Dashboard](https://supabase.com/dashboard)** → your project.
+2. Go to **Project Settings** (gear) → **Database**.
+3. Scroll to **Connection string**.
+4. Switch from **URI** (direct) to **Connection pooling** → **Session mode** (port 5432).
+5. Copy the **URI** shown there. It will look like:  
+   `postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:5432/postgres`  
+   (same password as your direct connection; the host is `...pooler.supabase.com`, not `db....supabase.co`).
+6. In **Render** → your service → **Environment**:
+   - Set **DATABASE_URL** to this **pooler URI** (paste the one you copied).
+7. **Save** and let Render **redeploy** (or trigger a manual deploy).
+
+After deploy, logs should show **✅ Database connection verified**.
+
+If you see **Connection terminated due to connection timeout** with the pooler host: the backend uses a 30s connection timeout for cross-region (e.g. Render US ↔ Supabase ap-south-1). Push the latest `backend/config/database.js` and redeploy. If it still times out, try hitting the API once the service is live—the first real request may succeed after the test times out.
 
 ---
 
