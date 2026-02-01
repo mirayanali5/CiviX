@@ -178,6 +178,40 @@ The app’s request timeout is 90 seconds so the first request has time to compl
 
 ---
 
+## If Singapore still times out (backend → DB)
+
+**1. Check if the backend can reach the DB**
+
+Open in a browser (and wait up to ~65 seconds):
+
+- **https://YOUR-SERVICE.onrender.com/api/health/db**
+
+- If you get **`{"db":"ok"}`** → DB connection works; the app may be timing out before the backend responds. Try login again or increase app timeout.
+- If it **times out or returns `{"db":"error",...}`** → Render cannot reach your Supabase pooler. Use step 2 or 3 below.
+
+**2. Try Supabase Transaction mode (port 6543)**
+
+Sometimes the **Transaction** pooler has a different network path:
+
+1. Supabase Dashboard → **Project Settings** → **Database** → **Connection string**.
+2. Under **Connection pooling**, select **Transaction mode** (port **6543**).
+3. Copy the **URI** (host will be the same pooler, port 6543).
+4. In Render → your service → **Environment** → set **DATABASE_URL** to this **Transaction mode** URI.
+5. Save and redeploy, then try **/api/health/db** again.
+
+**3. Reliable fix: Supabase in same region as Render (US East)**
+
+If Render (Oregon or Singapore) still cannot reach Supabase **ap-south-1** (Mumbai), use a Supabase project in **US East** so Render Oregon can connect quickly:
+
+1. **Create a new Supabase project** at [supabase.com/dashboard](https://supabase.com/dashboard) and choose **US East (N. Virginia)** when creating.
+2. In the new project: **SQL Editor** → run the contents of your **`backend/database/schema.sql`** (and any migrations) so tables match.
+3. **Project Settings** → **Database** → **Connection pooling** → **Session mode** → copy the **pooler URI**.
+4. In **Render**, use your **Oregon** service (or create one in Oregon). In **Environment**, set **DATABASE_URL** to the **new US East project’s pooler URI**. Set **SUPABASE_URL** and **SUPABASE_SERVICE_ROLE_KEY** to the **new project’s** values.
+5. Redeploy. Update the app’s **baseUrl** to the Oregon service URL if needed.
+6. Use the app (sign up / log in again on the new DB).
+
+---
+
 ## Summary
 
 1. Push code (with `render.yaml` and `backend/`) to GitHub.

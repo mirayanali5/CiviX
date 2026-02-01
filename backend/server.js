@@ -56,9 +56,31 @@ app.get('/', (req, res) => {
   });
 });
 
-// Health check
+// Health check (no DB)
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'CiviX API Server is running' });
+});
+
+// DB health – tests if backend can reach Supabase (use to debug connection timeout)
+const pool = require('./config/database');
+app.get('/api/health/db', (req, res) => {
+  const timeoutMs = 65000;
+  const t = setTimeout(() => {
+    if (!res.headersSent) {
+      res.status(504).json({ db: 'error', message: 'Database connection timed out after 65s' });
+    }
+  }, timeoutMs);
+  pool.query('SELECT 1')
+    .then(() => {
+      clearTimeout(t);
+      if (!res.headersSent) res.json({ db: 'ok' });
+    })
+    .catch((err) => {
+      clearTimeout(t);
+      if (!res.headersSent) {
+        res.status(503).json({ db: 'error', message: err.message || 'Database connection failed' });
+      }
+    });
 });
 
 // Bind to 0.0.0.0 so mobile on same Wi‑Fi can connect
