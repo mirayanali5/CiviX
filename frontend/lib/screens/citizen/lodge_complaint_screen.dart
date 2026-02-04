@@ -5,6 +5,7 @@ import 'package:record/record.dart';
 import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:dio/dio.dart';
 import '../../services/api_service.dart';
 import '../../utils/location_service.dart';
 import '../../providers/complaint_provider.dart';
@@ -326,6 +327,15 @@ class _LodgeComplaintScreenState extends State<LodgeComplaintScreen> {
             });
           }
         }
+      }
+    } on DioException catch (e) {
+      if (mounted) {
+        final msg = e.response?.data is Map && e.response!.data!['error'] != null
+            ? e.response!.data!['error'] as String
+            : e.message ?? 'Request failed';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $msg'), duration: const Duration(seconds: 5)),
+        );
       }
     } catch (e) {
       if (mounted) {

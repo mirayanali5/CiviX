@@ -17,12 +17,25 @@ class _CitizenLoginScreenState extends State<CitizenLoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _connecting = true; // Pre-warm server (Render cold start) before showing form
+  bool _showSkip = false;
 
   @override
   void initState() {
     super.initState();
-    // Wake Render free-tier service so login request doesn't hit cold start
-    ApiService().pingHealth();
+    _warmUpServer();
+    Future.delayed(const Duration(seconds: 15), () {
+      if (mounted && _connecting) setState(() => _showSkip = true);
+    });
+  }
+
+  Future<void> _warmUpServer() async {
+    final ok = await ApiService().checkHealth(timeout: const Duration(seconds: 90));
+    if (mounted) setState(() => _connecting = false);
+  }
+
+  void _skipConnecting() {
+    setState(() => _connecting = false);
   }
 
   @override
@@ -62,6 +75,34 @@ class _CitizenLoginScreenState extends State<CitizenLoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_connecting) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Citizen Login')),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 24),
+              const Text('Connecting to server…', style: TextStyle(fontSize: 16)),
+              const SizedBox(height: 8),
+              const Text(
+                'First time may take up to a minute (server waking up).',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+                textAlign: TextAlign.center,
+              ),
+              if (_showSkip) ...[
+                const SizedBox(height: 24),
+                TextButton(
+                  onPressed: _skipConnecting,
+                  child: const Text('Continue anyway'),
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
+    }
     return Consumer<AuthProvider>(
       builder: (context, authProvider, _) {
         final isLoading = authProvider.isLoading;

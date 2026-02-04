@@ -24,13 +24,18 @@ async function uploadToSupabase(file, bucketName) {
     throw new Error('Supabase not configured');
   }
 
-  const fileExt = file.originalname.split('.').pop();
+  const fileExt = file.originalname.split('.').pop() || 'bin';
   const fileName = `${uuidv4()}.${fileExt}`;
+  // Ensure correct MIME type for M4A (multer may send application/octet-stream)
+  let contentType = file.mimetype;
+  if (fileExt.toLowerCase() === 'm4a' && (!contentType || contentType === 'application/octet-stream')) {
+    contentType = 'audio/mp4';
+  }
 
   const { data, error } = await supabase.storage
     .from(bucketName)
     .upload(fileName, file.buffer, {
-      contentType: file.mimetype,
+      contentType,
       upsert: false
     });
 
@@ -77,11 +82,18 @@ router.post('/', upload.fields([
     }
 
     // Validate description or audio
-    let finalDescription = description || '';
+    // When both provided: always prefer description over audio (skip audio processing)
+    let finalDescription = (description && typeof description === 'string') ? description.trim() : '';
     let rawTranscript = '';
     let translatedTranscript = '';
 
-    if (audio) {
+    if (finalDescription) {
+      // Description provided - use it, skip audio transcription (still upload audio if present)
+      if (audio) {
+        console.log('Description provided - skipping audio transcription, will upload audio to bucket');
+      }
+    } else if (audio) {
+      // No description - process audio (transcribe, detect language, translate if needed)
       try {
         console.log('Processing audio file:', {
           size: audio.buffer.length,
@@ -93,7 +105,7 @@ router.post('/', upload.fields([
         rawTranscript = audioResult.rawTranscript;
         translatedTranscript = audioResult.translatedTranscript;
         
-        if (!finalDescription && translatedTranscript) {
+        if (translatedTranscript) {
           finalDescription = translatedTranscript;
         }
       } catch (error) {
@@ -103,16 +115,10 @@ router.post('/', upload.fields([
           code: error.code,
           stack: error.stack
         });
-        // Don't fail the entire request if audio processing fails
-        // Just log and continue without transcript
-        console.warn('Continuing without audio transcript due to error:', error.message);
-        // If no description provided and audio failed, return error
-        if (!finalDescription || finalDescription.trim() === '') {
-          return res.status(400).json({ 
-            error: 'Audio processing failed. Please provide a text description or try again.',
-            details: error.message 
-          });
-        }
+        return res.status(400).json({ 
+          error: 'Audio processing failed. Please provide a text description or try again.',
+          details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
       }
     }
 

@@ -142,9 +142,9 @@ class AuthService {
       case DioExceptionType.connectionTimeout:
       case DioExceptionType.sendTimeout:
       case DioExceptionType.receiveTimeout:
-        return 'Connection timeout. Check network and try again.';
+        return 'Connection timeout. Server may be waking up—wait 30 seconds and try again.';
       case DioExceptionType.connectionError:
-        return 'Cannot reach server. Ensure backend is running and phone is on same Wi‑Fi. Set your PC IP in lib/config/api_config.dart';
+        return 'Cannot reach server. Try Wi‑Fi, or open the health URL in your phone\'s browser. If it fails there too, the network is blocking the server.';
       default:
         return e.response?.statusCode == 401
             ? 'Invalid email or password.'

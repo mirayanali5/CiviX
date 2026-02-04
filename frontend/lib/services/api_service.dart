@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:http_parser/http_parser.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/api_config.dart';
@@ -11,8 +12,8 @@ class ApiService {
   ApiService() {
     _dio = Dio(BaseOptions(
       baseUrl: ApiConfig.baseUrl,
-      connectTimeout: const Duration(seconds: 90),  // First request may be slow (cold start + DB connect)
-      receiveTimeout: const Duration(seconds: 90),
+      connectTimeout: const Duration(seconds: 120),  // Render free-tier cold start can take 30–60s
+      receiveTimeout: const Duration(seconds: 120),
     ));
 
     _dio.interceptors.add(InterceptorsWrapper(
@@ -30,9 +31,20 @@ class ApiService {
     ));
   }
 
-  /// Ping /api/health to wake Render (free tier cold start). Call when login screen opens.
+  /// Fire-and-forget ping to wake Render (free tier cold start).
   void pingHealth() {
     _dio.get('/health').catchError((_) {});
+  }
+
+  /// Awaitable health check. Use when login screen opens to pre-warm server before user taps Login.
+  /// Returns true if server responded within [timeout]. Default 90s to cover Render cold start.
+  Future<bool> checkHealth({Duration timeout = const Duration(seconds: 90)}) async {
+    try {
+      final r = await _dio.get('/health').timeout(timeout);
+      return r.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
   }
 
   // Auth endpoints
@@ -85,10 +97,14 @@ class ApiService {
   }) async {
     final formData = FormData.fromMap({
       'photo': await MultipartFile.fromFile(photo.path),
-      if (audio != null) 'audio': await MultipartFile.fromFile(audio.path),
-      if (description != null) 'description': description,
-      'gps_lat': lat,
-      'gps_long': lon,
+      if (audio != null) 'audio': await MultipartFile.fromFile(
+        audio!.path,
+        filename: 'recording.m4a',
+        contentType: MediaType('audio', 'mp4'),
+      ),
+      if (description != null && description.isNotEmpty) 'description': description,
+      'gps_lat': lat.toString(),
+      'gps_long': lon.toString(),
       if (tags != null) 'tags': tags.join(','),
     });
 
