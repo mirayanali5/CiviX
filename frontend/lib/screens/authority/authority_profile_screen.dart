@@ -112,7 +112,7 @@ class _AuthorityProfileScreenState extends State<AuthorityProfileScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      'Authority User',
+                                      _profile!['name']?.toString() ?? 'Authority User',
                                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                             fontWeight: FontWeight.bold,
                                           ),

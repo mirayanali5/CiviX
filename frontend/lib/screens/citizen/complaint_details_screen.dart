@@ -40,6 +40,11 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
       ),
       body: Consumer<ComplaintProvider>(
         builder: (context, provider, child) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+          final cardBg = isDark ? AppTheme.surfaceCard : Colors.grey.shade200;
+          final elevatedBg = isDark ? AppTheme.surfaceCardElevated : Colors.grey.shade300;
+          final textSecondary = isDark ? AppTheme.textSecondary : Colors.grey.shade700;
+
           if (provider.isLoading) {
             return const Center(child: CircularProgressIndicator(color: AppTheme.primaryTeal));
           }
@@ -67,7 +72,7 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
                         Text(
                           'Reported media (tap for full size)',
                           style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            color: AppTheme.textSecondary,
+                            color: textSecondary,
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -91,8 +96,8 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
                               fit: BoxFit.cover,
                               errorBuilder: (_, __, ___) => Container(
                                 height: 220,
-                                color: AppTheme.surfaceCard,
-                                child: const Icon(Icons.image_not_supported, size: 48, color: AppTheme.textSecondary),
+                                color: cardBg,
+                                child: Icon(Icons.image_not_supported, size: 48, color: textSecondary),
                               ),
                             ),
                           ),
@@ -134,7 +139,7 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
                       if (complaint['department'] != null)
                         Chip(
                           label: Text(complaint['department']),
-                          backgroundColor: AppTheme.surfaceCardElevated,
+                          backgroundColor: elevatedBg,
                         ),
                       const SizedBox(height: 16),
                       // Resolution proof (shown to citizens when resolved)
@@ -160,8 +165,8 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
                                 fit: BoxFit.cover,
                                 errorBuilder: (_, __, ___) => Container(
                                   height: 180,
-                                  color: AppTheme.surfaceCard,
-                                  child: const Icon(Icons.image_not_supported, size: 48, color: AppTheme.textSecondary),
+                                  color: cardBg,
+                                  child: Icon(Icons.image_not_supported, size: 48, color: textSecondary),
                                 ),
                               ),
                             ),
@@ -173,7 +178,7 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
                           Text(
                             complaint['resolution_notes'],
                             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: AppTheme.textSecondary,
+                              color: textSecondary,
                             ),
                           ),
                         ],
@@ -182,7 +187,7 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
                           Text(
                             'Resolved ${_formatDate(complaint['resolved_at'])}',
                             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppTheme.textSecondary,
+                              color: textSecondary,
                             ),
                           ),
                         ],
@@ -214,7 +219,7 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
                                     Text(
                                       'Location',
                                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                        color: AppTheme.textSecondary,
+                                        color: textSecondary,
                                       ),
                                     ),
                                     Text(
@@ -231,7 +236,7 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
                                   ],
                                 ),
                               ),
-                              const Icon(Icons.arrow_forward_ios, size: 14, color: AppTheme.textSecondary),
+                              Icon(Icons.arrow_forward_ios, size: 14, color: textSecondary),
                             ],
                           ),
                         ),

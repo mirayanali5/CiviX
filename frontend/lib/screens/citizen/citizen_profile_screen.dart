@@ -70,6 +70,10 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? AppTheme.surfaceCard : Colors.grey.shade100;
+    final textPrimary = isDark ? AppTheme.textPrimary : Colors.black87;
+    final textSecondary = isDark ? AppTheme.textSecondary : Colors.grey.shade700;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Settings'),
@@ -91,7 +95,7 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
                   Text(
                     'Manage your profile, permissions, and app preferences.',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppTheme.textSecondary,
+                      color: textSecondary,
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -99,8 +103,9 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: AppTheme.surfaceCard,
+                        color: cardBg,
                         borderRadius: BorderRadius.circular(12),
+                        boxShadow: isDark ? null : [BoxShadow(color: Colors.black12, blurRadius: 4, offset: const Offset(0, 2))],
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -124,19 +129,19 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Text(
+                                    Text(
                                       'Citizen User',
                                       style: TextStyle(
                                         fontSize: 18,
                                         fontWeight: FontWeight.bold,
-                                        color: AppTheme.textPrimary,
+                                        color: textPrimary,
                                       ),
                                     ),
                                     Text(
                                       'ID: User#${() { final id = _profile!['id']?.toString() ?? ''; return id.length >= 8 ? id.substring(0, 8) : id.isNotEmpty ? id : '—'; }()}',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 12,
-                                        color: AppTheme.textSecondary,
+                                        color: textSecondary,
                                       ),
                                     ),
                                   ],
@@ -176,15 +181,16 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
                   Text(
                     'Control access for reporting features.',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppTheme.textSecondary,
+                      color: textSecondary,
                     ),
                   ),
                   const SizedBox(height: 12),
                   Container(
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     decoration: BoxDecoration(
-                      color: AppTheme.surfaceCard,
+                      color: cardBg,
                       borderRadius: BorderRadius.circular(12),
+                      boxShadow: isDark ? null : [BoxShadow(color: Colors.black12, blurRadius: 4, offset: const Offset(0, 2))],
                     ),
                     child: Column(
                       children: [
@@ -295,10 +301,10 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
                           );
                         }
                       },
-                      icon: const Icon(Icons.logout, color: AppTheme.textSecondary),
-                      label: const Text(
+                      icon: Icon(Icons.logout, color: textSecondary),
+                      label: Text(
                         'Back to Dashboard',
-                        style: TextStyle(color: AppTheme.textSecondary),
+                        style: TextStyle(color: textSecondary),
                       ),
                     ),
                   ),
@@ -323,6 +329,10 @@ class _ProfileRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final labelColor = isDark ? AppTheme.textSecondary : Colors.grey.shade700;
+    final valueColor = isDark ? AppTheme.textPrimary : Colors.black87;
+    final chipBg = isDark ? AppTheme.surfaceCardElevated : Colors.grey.shade300;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
@@ -330,8 +340,8 @@ class _ProfileRow extends StatelessWidget {
         children: [
           Text(
             label,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
+            style: TextStyle(
+              color: labelColor,
               fontSize: 14,
             ),
           ),
@@ -339,22 +349,22 @@ class _ProfileRow extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: AppTheme.surfaceCardElevated,
+                color: chipBg,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
                 value,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
-                  color: AppTheme.textPrimary,
+                  color: valueColor,
                 ),
               ),
             )
           else
             Text(
               value,
-              style: const TextStyle(
-                color: AppTheme.textPrimary,
+              style: TextStyle(
+                color: valueColor,
                 fontSize: 14,
               ),
             ),
@@ -377,16 +387,20 @@ class _PermissionItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final iconColor = isDark ? AppTheme.textSecondary : Colors.grey.shade700;
+    final titleColor = isDark ? AppTheme.textPrimary : Colors.black87;
+    final trailingColor = granted ? AppTheme.statusGreen : (isDark ? AppTheme.textSecondary : Colors.grey.shade700);
     return ListTile(
-      leading: Icon(icon, color: AppTheme.textSecondary, size: 22),
+      leading: Icon(icon, color: iconColor, size: 22),
       title: Text(
         label,
-        style: const TextStyle(color: AppTheme.textPrimary, fontSize: 15),
+        style: TextStyle(color: titleColor, fontSize: 15),
       ),
       trailing: Text(
         granted ? 'Enabled' : 'Disabled',
         style: TextStyle(
-          color: granted ? AppTheme.statusGreen : AppTheme.textSecondary,
+          color: trailingColor,
           fontSize: 13,
         ),
       ),

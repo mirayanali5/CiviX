@@ -8,11 +8,11 @@ router.get('/dashboard', requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
 
-    // Get user's complaint stats
+    // Get user's complaint stats (case-insensitive status check)
     const statsResult = await pool.query(
       `SELECT 
-        COUNT(*) FILTER (WHERE status = 'open') as open_complaints,
-        COUNT(*) FILTER (WHERE status = 'resolved') as resolved_complaints,
+        COUNT(*) FILTER (WHERE LOWER(status) = 'open') as open_complaints,
+        COUNT(*) FILTER (WHERE LOWER(status) = 'resolved') as resolved_complaints,
         COUNT(*) as total_complaints
        FROM complaints
        WHERE user_id = $1::uuid`,

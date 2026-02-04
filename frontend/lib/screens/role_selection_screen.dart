@@ -8,6 +8,9 @@ class RoleSelectionScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppTheme.textPrimary : Colors.black87;
+    final textSecondary = isDark ? AppTheme.textSecondary : Colors.grey.shade700;
     return Scaffold(
       body: SafeArea(
         child: Padding(
@@ -15,12 +18,12 @@ class RoleSelectionScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text(
+              Text(
                 'Welcome',
                 style: TextStyle(
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
-                  color: AppTheme.textPrimary,
+                  color: textPrimary,
                 ),
               ),
               const SizedBox(height: 8),
@@ -28,7 +31,7 @@ class RoleSelectionScreen extends StatelessWidget {
                 'Please select your role to continue:',
                 style: TextStyle(
                   fontSize: 16,
-                  color: AppTheme.textSecondary,
+                  color: textSecondary,
                 ),
               ),
               const SizedBox(height: 48),
@@ -82,9 +85,15 @@ class _RoleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? AppTheme.surfaceCard : Colors.white;
+    final textPrimary = isDark ? AppTheme.textPrimary : Colors.black87;
+    final textSecondary = isDark ? AppTheme.textSecondary : Colors.grey.shade700;
     return Material(
-      color: AppTheme.surfaceCard,
+      color: cardBg,
       borderRadius: BorderRadius.circular(16),
+      elevation: isDark ? 0 : 2,
+      shadowColor: isDark ? null : Colors.black26,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
@@ -107,18 +116,18 @@ class _RoleCard extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
-                        color: AppTheme.textPrimary,
+                        color: textPrimary,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       subtitle,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
-                        color: AppTheme.textSecondary,
+                        color: textSecondary,
                       ),
                     ),
                   ],

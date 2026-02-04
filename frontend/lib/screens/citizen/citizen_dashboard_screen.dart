@@ -179,6 +179,7 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen> {
   }
 
   Widget _buildStatsCards() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -187,7 +188,7 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen> {
           Text(
             'My Report Metrics',
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: AppTheme.textSecondary,
+              color: isDark ? AppTheme.textSecondary : Colors.grey.shade700,
             ),
           ),
           const SizedBox(height: 12),
@@ -213,7 +214,7 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen> {
                 child: _StatCard(
                   title: 'Total',
                   value: _stats!['total_complaints']?.toString() ?? '0',
-                  color: AppTheme.surfaceCardElevated,
+                  color: isDark ? AppTheme.surfaceCardElevated : Colors.grey.shade700,
                 ),
               ),
             ],
@@ -234,12 +235,15 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen> {
         }
 
         if (provider.complaints.isEmpty) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
           return Padding(
             padding: const EdgeInsets.all(32.0),
             child: Center(
               child: Text(
                 'No complaints found',
-                style: TextStyle(color: AppTheme.textSecondary),
+                style: TextStyle(
+                  color: isDark ? AppTheme.textSecondary : Colors.grey.shade700,
+                ),
               ),
             ),
           );
@@ -295,12 +299,21 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isTotalCard = color == AppTheme.surfaceCardElevated || (!isDark && color == Colors.grey.shade700);
+    final bgColor = isTotalCard
+        ? (isDark ? AppTheme.surfaceCard : Colors.grey.shade200)
+        : color.withOpacity(0.2);
+    final valueColor = isTotalCard
+        ? (isDark ? AppTheme.textPrimary : Colors.black87)
+        : color;
+    final titleColor = isTotalCard
+        ? (isDark ? AppTheme.textSecondary : Colors.grey.shade700)
+        : color;
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
       decoration: BoxDecoration(
-        color: color == AppTheme.surfaceCardElevated
-            ? AppTheme.surfaceCard
-            : color.withOpacity(0.2),
+        color: bgColor,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -310,7 +323,7 @@ class _StatCard extends StatelessWidget {
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
-              color: color == AppTheme.surfaceCardElevated ? AppTheme.textPrimary : color,
+              color: valueColor,
             ),
           ),
           const SizedBox(height: 4),
@@ -318,7 +331,7 @@ class _StatCard extends StatelessWidget {
             title,
             style: TextStyle(
               fontSize: 12,
-              color: color == AppTheme.surfaceCardElevated ? AppTheme.textSecondary : color,
+              color: titleColor,
             ),
           ),
         ],
@@ -358,12 +371,18 @@ class _ComplaintCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? AppTheme.surfaceCard : Colors.white;
+    final elevatedBg = isDark ? AppTheme.surfaceCardElevated : Colors.grey.shade200;
+    final textPrimary = isDark ? AppTheme.textPrimary : Colors.black87;
+    final textSecondary = isDark ? AppTheme.textSecondary : Colors.grey.shade700;
     final status = complaint['status'] ?? 'Open';
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceCard,
+        color: cardBg,
         borderRadius: BorderRadius.circular(12),
+        boxShadow: isDark ? null : [BoxShadow(color: Colors.black12, blurRadius: 4, offset: const Offset(0, 2))],
       ),
       child: Material(
         color: Colors.transparent,
@@ -379,11 +398,11 @@ class _ComplaintCard extends StatelessWidget {
                   children: [
                     CircleAvatar(
                       radius: 16,
-                      backgroundColor: AppTheme.surfaceCardElevated,
+                      backgroundColor: elevatedBg,
                       child: Text(
                         _getReporterName().isNotEmpty ? _getReporterName()[0].toUpperCase() : '?',
-                        style: const TextStyle(
-                          color: AppTheme.textPrimary,
+                        style: TextStyle(
+                          color: textPrimary,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -391,9 +410,9 @@ class _ComplaintCard extends StatelessWidget {
                     const SizedBox(width: 8),
                     Text(
                       _getReporterName(),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
-                        color: AppTheme.textSecondary,
+                        color: textSecondary,
                       ),
                     ),
                     const Spacer(),
@@ -417,7 +436,7 @@ class _ComplaintCard extends StatelessWidget {
                 const SizedBox(height: 6),
                 Text(
                   'Posted ${complaint['created_at'] != null ? _timeAgo(complaint['created_at']) : '?'} | ID: ${complaint['id'] != null ? (complaint['id'] as String).length >= 8 ? (complaint['id'] as String).substring(0, 8) : complaint['id'] : '—'}',
-                  style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                  style: TextStyle(fontSize: 11, color: textSecondary),
                 ),
                 const SizedBox(height: 10),
                 if (complaint['photo_url'] != null || complaint['image_url'] != null)
@@ -432,9 +451,9 @@ class _ComplaintCard extends StatelessWidget {
                         fit: BoxFit.cover,
                         errorBuilder: (_, __, ___) => Container(
                           height: 140,
-                          color: AppTheme.surfaceCardElevated,
-                          child: const Icon(Icons.image_not_supported,
-                              color: AppTheme.textSecondary),
+                          color: elevatedBg,
+                          child: Icon(Icons.image_not_supported,
+                              color: textSecondary),
                         ),
                       ),
                     ),
@@ -454,7 +473,7 @@ class _ComplaintCard extends StatelessWidget {
                       complaint['department'],
                       style: const TextStyle(fontSize: 11),
                     ),
-                    backgroundColor: AppTheme.surfaceCardElevated,
+                    backgroundColor: elevatedBg,
                     padding: EdgeInsets.zero,
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
@@ -462,7 +481,7 @@ class _ComplaintCard extends StatelessWidget {
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    const Icon(Icons.location_on_outlined, size: 14, color: AppTheme.textSecondary),
+                    Icon(Icons.location_on_outlined, size: 14, color: textSecondary),
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
@@ -474,7 +493,7 @@ class _ComplaintCard extends StatelessWidget {
                           }
                           return 'Location not available';
                         }(),
-                        style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                        style: TextStyle(fontSize: 12, color: textSecondary),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
