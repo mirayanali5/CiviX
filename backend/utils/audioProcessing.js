@@ -114,6 +114,9 @@ async function transcribeAudio(audioBuffer, languageCode = 'en-US') {
       alternativeLanguageCodes: ['en-US', 'hi-IN', 'te-IN'],
       enableAutomaticPunctuation: true,
       sampleRateHertz: sampleRate,
+      // OGG from Flutter record defaults to stereo (2). Must match or be unspecified.
+      // Mobile uses numChannels: 1 for mono; stereo recordings need audioChannelCount: 2
+      ...(encoding === 'OGG_OPUS' && { audioChannelCount: 2 }),
     };
 
     const request = {
