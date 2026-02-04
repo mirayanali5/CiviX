@@ -41,8 +41,8 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
       body: Consumer<ComplaintProvider>(
         builder: (context, provider, child) {
           final isDark = Theme.of(context).brightness == Brightness.dark;
-          final cardBg = isDark ? AppTheme.surfaceCard : Colors.grey.shade200;
-          final elevatedBg = isDark ? AppTheme.surfaceCardElevated : Colors.grey.shade300;
+          final cardBg = isDark ? AppTheme.surfaceCard : Colors.white;
+          final elevatedBg = isDark ? AppTheme.surfaceCardElevated : Colors.grey.shade100;
           final textSecondary = isDark ? AppTheme.textSecondary : Colors.grey.shade700;
 
           if (provider.isLoading) {
@@ -253,9 +253,10 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
                                   color: isUpvoted ? Colors.red : AppTheme.primaryTeal,
                                 ),
                                 onPressed: () async {
+                                  final messenger = ScaffoldMessenger.of(context);
                                   final success = await provider.upvoteComplaint(widget.complaintId);
                                   if (success && mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
+                                    messenger.showSnackBar(
                                       SnackBar(
                                         content: Text(isUpvoted ? 'Upvote removed' : 'Upvoted!'),
                                         backgroundColor: AppTheme.primaryTeal,

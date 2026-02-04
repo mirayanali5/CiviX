@@ -103,7 +103,7 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: cardBg,
+                        color: isDark ? AppTheme.surfaceCard : Colors.white,
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: isDark ? null : [BoxShadow(color: Colors.black12, blurRadius: 4, offset: const Offset(0, 2))],
                       ),
@@ -188,7 +188,7 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     decoration: BoxDecoration(
-                      color: cardBg,
+                      color: isDark ? AppTheme.surfaceCard : Colors.white,
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: isDark ? null : [BoxShadow(color: Colors.black12, blurRadius: 4, offset: const Offset(0, 2))],
                     ),
@@ -421,21 +421,44 @@ class _ThemeChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final primary = Theme.of(context).colorScheme.primary;
+    
+    // Selected: use primary color with better visibility
+    // Unselected: use subtle background to distinguish from scaffold
+    final selectedBg = isDark 
+        ? primary.withOpacity(0.3) 
+        : primary.withOpacity(0.15);
+    final unselectedBg = isDark 
+        ? AppTheme.surfaceCard 
+        : Colors.grey.shade200;
+    
     return Material(
-      color: isSelected ? primary.withOpacity(0.2) : Theme.of(context).cardColor,
+      color: isSelected ? selectedBg : unselectedBg,
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
-        child: Padding(
+        child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: isSelected
+              ? BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: primary.withOpacity(0.5),
+                    width: 1.5,
+                  ),
+                )
+              : null,
           child: Center(
             child: Text(
               label,
               style: TextStyle(
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? primary : Theme.of(context).textTheme.bodyMedium?.color,
+                color: isSelected 
+                    ? primary 
+                    : (isDark ? AppTheme.textSecondary : Colors.grey.shade700),
+                fontSize: 14,
               ),
             ),
           ),

@@ -3,37 +3,23 @@ const router = express.Router();
 const pool = require('../config/database');
 const { authenticateToken, requireAuth } = require('../middleware/auth');
 
-// Get user dashboard stats
+// Get user dashboard stats (global counts from complaints table)
 router.get('/dashboard', requireAuth, async (req, res) => {
   try {
-    const userId = req.user.id;
-
-    // Get user's complaint stats (case-insensitive status check)
+    // Global complaint stats: open/resolved/total from entire complaints table
     const statsResult = await pool.query(
       `SELECT 
         COUNT(*) FILTER (WHERE LOWER(status) = 'open') as open_complaints,
         COUNT(*) FILTER (WHERE LOWER(status) = 'resolved') as resolved_complaints,
         COUNT(*) as total_complaints
-       FROM complaints
-       WHERE user_id = $1::uuid`,
-      [userId]
-    );
-
-    // Get upvoted complaints count
-    const upvotedResult = await pool.query(
-      `SELECT COUNT(DISTINCT complaint_id) as upvoted_count
-       FROM upvotes
-       WHERE user_id = $1`,
-      [userId]
+       FROM complaints`
     );
 
     const stats = statsResult.rows[0];
-    const totalWithUpvotes = parseInt(stats.total_complaints) + parseInt(upvotedResult.rows[0].upvoted_count || 0);
-
     res.json({
       open_complaints: parseInt(stats.open_complaints || 0),
       resolved_complaints: parseInt(stats.resolved_complaints || 0),
-      total_complaints: totalWithUpvotes
+      total_complaints: parseInt(stats.total_complaints || 0)
     });
   } catch (error) {
     console.error('Dashboard stats error:', error);

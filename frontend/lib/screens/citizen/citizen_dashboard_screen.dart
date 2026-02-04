@@ -186,7 +186,7 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'My Report Metrics',
+            'Complaint Overview',
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
               color: isDark ? AppTheme.textSecondary : Colors.grey.shade700,
             ),
