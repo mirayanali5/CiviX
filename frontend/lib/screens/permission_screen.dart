@@ -24,47 +24,76 @@ class _PermissionScreenState extends State<PermissionScreen> {
   }
 
   Future<void> _checkPermissions() async {
-    setState(() {
-      _isLoading = true;
-    });
+    try {
+      setState(() {
+        _isLoading = true;
+      });
 
-    // Check GPS first (most critical - app cannot start without it)
-    final locationEnabled = await Geolocator.isLocationServiceEnabled();
-    
-    setState(() {
-      _gpsEnabled = locationEnabled;
-      _isLoading = false;
-    });
+      // Check GPS first (most critical - app cannot start without it)
+      final locationEnabled = await Geolocator.isLocationServiceEnabled();
+      
+      setState(() {
+        _gpsEnabled = locationEnabled;
+        _isLoading = false;
+      });
 
-    if (!locationEnabled) {
-      // GPS is off - show prompt, don't proceed
-      return;
-    }
+      if (!locationEnabled) {
+        // GPS is off - show prompt, don't proceed
+        return;
+      }
 
-    // GPS is on, now request other permissions
-    if (!_hasRequested) {
-      await _requestPermissions();
+      // GPS is on, now request other permissions
+      if (!_hasRequested) {
+        await _requestPermissions();
+      }
+    } catch (e) {
+      print('Error checking permissions: $e');
+      setState(() {
+        _isLoading = false;
+        // If GPS check fails, assume it's enabled and proceed
+        _gpsEnabled = true;
+      });
+      // Try to request permissions anyway
+      if (!_hasRequested) {
+        await _requestPermissions();
+      }
     }
   }
 
   Future<void> _requestPermissions() async {
-    setState(() {
-      _isLoading = true;
-      _hasRequested = true;
-    });
+    try {
+      setState(() {
+        _isLoading = true;
+        _hasRequested = true;
+      });
 
-    // Request all permissions
-    final results = await PermissionService.requestAllPermissions();
+      // Request all permissions
+      final results = await PermissionService.requestAllPermissions();
 
-    setState(() {
-      _permissions = results;
-      _isLoading = false;
-    });
+      setState(() {
+        _permissions = results;
+        _isLoading = false;
+      });
 
-    // Check if we can proceed (GPS enabled + location permission)
-    if (results['locationEnabled'] == true && results['location'] == true) {
-      // Wait a moment then navigate
-      await Future.delayed(const Duration(milliseconds: 500));
+      // Check if we can proceed (GPS enabled + location permission)
+      // If location permission check fails, proceed anyway (user can grant later)
+      final canProceed = (results['locationEnabled'] == true && results['location'] == true) ||
+                         (results['locationEnabled'] == true && results['location'] != false);
+      
+      if (canProceed || _gpsEnabled) {
+        // Wait a moment then navigate
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (mounted) {
+          _navigateToApp();
+        }
+      }
+    } catch (e) {
+      print('Error requesting permissions: $e');
+      setState(() {
+        _isLoading = false;
+      });
+      // If permission request fails, proceed anyway after a delay
+      await Future.delayed(const Duration(seconds: 1));
       if (mounted) {
         _navigateToApp();
       }

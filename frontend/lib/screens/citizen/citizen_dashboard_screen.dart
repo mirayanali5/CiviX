@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../config/app_theme.dart';
 import '../../providers/complaint_provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import '../../widgets/bottom_navigation.dart';
 import 'lodge_complaint_screen.dart';
@@ -32,17 +33,30 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen> {
   }
 
   Future<void> _loadDashboard() async {
-    try {
-      final response = await _apiService.getDashboardStats();
-      if (response.statusCode == 200) {
-        setState(() {
-          _stats = response.data;
-        });
+    // Check if user is authenticated before loading stats
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final isAuthenticated = authProvider.isAuthenticated;
+    
+    // Load dashboard stats (requires auth - may fail if not logged in)
+    if (isAuthenticated) {
+      try {
+        final response = await _apiService.getDashboardStats();
+        if (response.statusCode == 200 && response.data != null) {
+          setState(() {
+            _stats = response.data;
+          });
+          print('✅ Dashboard stats loaded');
+        }
+      } catch (e) {
+        print('⚠️  Load dashboard stats error: $e');
+        // Don't set _stats to null - keep previous stats if any
+        // This allows dashboard to work even if stats fail
       }
-    } catch (e) {
-      print('Load dashboard error: $e');
+    } else {
+      print('ℹ️  User not authenticated - skipping dashboard stats');
     }
 
+    // Load complaints (works without auth - shows public complaints)
     final complaintProvider = Provider.of<ComplaintProvider>(context, listen: false);
     await complaintProvider.fetchComplaints();
   }

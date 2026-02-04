@@ -26,16 +26,37 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
   }
 
   Future<void> _loadProfile() async {
+    // Check if user is authenticated
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (!authProvider.isAuthenticated) {
+      print('⚠️  User not authenticated - cannot load profile');
+      setState(() {
+        _isLoading = false;
+        _profile = null;
+      });
+      return;
+    }
+    
     try {
       final response = await _apiService.getUserProfile();
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 && response.data != null) {
         setState(() {
           _profile = response.data['user'];
           _isLoading = false;
         });
+        print('✅ Profile loaded: ${_profile?['email']}');
+      } else {
+        print('⚠️  Profile response status: ${response.statusCode}');
+        setState(() {
+          _isLoading = false;
+        });
       }
     } catch (e) {
-      print('Load profile error: $e');
+      print('❌ Load profile error: $e');
+      if (e.toString().contains('401')) {
+        print('   Authentication failed - token may be invalid or expired');
+        print('   Try logging out and logging back in');
+      }
       setState(() {
         _isLoading = false;
       });

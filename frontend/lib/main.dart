@@ -22,6 +22,7 @@ void main() async {
   } catch (e) {
     print('⚠️  Failed to load .env file: $e');
     print('   Make sure .env file exists in frontend root directory');
+    // Continue anyway - configs have fallback values
   }
   
   // Initialize Supabase for Google OAuth
@@ -29,20 +30,23 @@ void main() async {
     final supabaseUrl = SupabaseConfig.url;
     final supabaseAnonKey = SupabaseConfig.anonKey;
     
-    if (supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty) {
+    if (supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty && supabaseAnonKey != 'YOUR_SUPABASE_ANON_KEY_HERE') {
       await Supabase.initialize(
         url: supabaseUrl,
         anonKey: supabaseAnonKey,
       );
       print('✅ Supabase initialized successfully');
     } else {
-      print('⚠️  Supabase URL or Anon Key is missing in .env file');
+      print('⚠️  Supabase URL or Anon Key is missing/invalid in .env file');
+      print('   Google login will not be available');
     }
-  } catch (e) {
+  } catch (e, stackTrace) {
     print('⚠️  Supabase initialization error: $e');
+    print('Stack trace: $stackTrace');
     // Continue without Supabase if initialization fails
   }
   
+  // Run app - ensure same zone
   runApp(const CiviXApp());
 }
 

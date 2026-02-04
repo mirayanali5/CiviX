@@ -43,7 +43,8 @@ const { authenticateToken } = require('./middleware/auth');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/complaints', complaintRoutes);
-app.use('/api/users', userRoutes);
+// User routes require JWT verification first so req.user is set for requireAuth
+app.use('/api/users', authenticateToken, userRoutes);
 // Authority routes require JWT verification first so req.user is set for requireAuthority
 app.use('/api/authority', authenticateToken, authorityRoutes);
 

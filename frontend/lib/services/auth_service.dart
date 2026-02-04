@@ -68,6 +68,8 @@ class AuthService {
           if (token != null && user != null) {
             await _saveToken(token.toString());
             await _saveUser(Map<String, dynamic>.from(user));
+            print('✅ Login successful, token saved: ${token.toString().substring(0, 20)}...');
+            print('   User: ${user['email']} (${user['id']})');
             return true;
           }
         }

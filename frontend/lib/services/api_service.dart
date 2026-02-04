@@ -20,12 +20,27 @@ class ApiService {
       onRequest: (options, handler) async {
         final prefs = await SharedPreferences.getInstance();
         final token = prefs.getString('auth_token');
-        if (token != null) {
+        if (token != null && token.isNotEmpty) {
           options.headers['Authorization'] = 'Bearer $token';
+          final tokenPreview = token.length > 20 ? '${token.substring(0, 20)}...' : token;
+          print('🔑 Sending request to ${options.path} with token: $tokenPreview');
+        } else {
+          print('⚠️  No auth token found for request to ${options.path}');
+          // Check if this is an authenticated endpoint
+          final authEndpoints = ['/users/', '/complaints/', '/auth/me'];
+          final needsAuth = authEndpoints.any((endpoint) => options.path.contains(endpoint));
+          if (needsAuth) {
+            print('   ⚠️  This endpoint requires authentication but no token is available');
+          }
         }
         handler.next(options);
       },
       onError: (error, handler) {
+        if (error.response?.statusCode == 401) {
+          print('❌ 401 Unauthorized for ${error.requestOptions.path}');
+          print('   Response: ${error.response?.data}');
+          print('   Headers sent: ${error.requestOptions.headers.containsKey('Authorization') ? 'Yes' : 'No'}');
+        }
         handler.next(error);
       },
     ));

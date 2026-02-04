@@ -14,9 +14,15 @@ class _SplashScreenState extends State<SplashScreen> {
   void initState() {
     super.initState();
     Timer(const Duration(seconds: 2), () {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const PermissionScreen()),
-      );
+      if (mounted) {
+        try {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const PermissionScreen()),
+          );
+        } catch (e) {
+          print('Error navigating from splash: $e');
+        }
+      }
     });
   }
 

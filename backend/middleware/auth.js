@@ -26,6 +26,7 @@ async function authenticateToken(req, res, next) {
 
   try {
     const decoded = jwt.verify(token, jwtSecret);
+    console.log('✅ Token verified successfully:', { id: decoded.id || decoded.sub, email: decoded.email });
 
     // Supabase JWT tokens have different structure
     // Extract user info from token payload
@@ -59,9 +60,13 @@ async function authenticateToken(req, res, next) {
     }
 
     req.user = userInfo;
+    console.log('✅ req.user set:', { id: req.user.id, email: req.user.email, role: req.user.role });
     next();
   } catch (err) {
-    return res.status(403).json({ error: 'Invalid or expired token' });
+    console.error('❌ Token verification failed:', err.message);
+    console.error('   Token preview:', token.substring(0, 50) + '...');
+    console.error('   JWT_SECRET configured:', !!jwtSecret);
+    return res.status(403).json({ error: 'Invalid or expired token', details: err.message });
   }
 }
 
