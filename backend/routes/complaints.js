@@ -26,10 +26,10 @@ async function uploadToSupabase(file, bucketName) {
 
   const fileExt = file.originalname.split('.').pop() || 'bin';
   const fileName = `${uuidv4()}.${fileExt}`;
-  // Ensure correct MIME type for M4A (multer may send application/octet-stream)
   let contentType = file.mimetype;
-  if (fileExt.toLowerCase() === 'm4a' && (!contentType || contentType === 'application/octet-stream')) {
-    contentType = 'audio/mp4';
+  if (!contentType || contentType === 'application/octet-stream') {
+    if (fileExt.toLowerCase() === 'm4a') contentType = 'audio/mp4';
+    else if (fileExt.toLowerCase() === 'ogg') contentType = 'audio/ogg';
   }
 
   const { data, error } = await supabase.storage

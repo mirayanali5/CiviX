@@ -170,15 +170,15 @@ class _LodgeComplaintScreenState extends State<LodgeComplaintScreen> {
         return;
       }
 
-      // Get app documents directory for storing audio
+      // Get app documents directory - use OGG Opus (Google Speech API supports it; M4A is not supported)
       final directory = await getApplicationDocumentsDirectory();
-      final path = '${directory.path}/audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
+      final path = '${directory.path}/audio_${DateTime.now().millisecondsSinceEpoch}.ogg';
       
       await _audioRecorder.start(
         const RecordConfig(
-          encoder: AudioEncoder.aacLc,
+          encoder: AudioEncoder.opus,
           bitRate: 128000,
-          sampleRate: 44100,
+          sampleRate: 48000, // OGG_OPUS supports 48000 Hz
         ),
         path: path,
       );

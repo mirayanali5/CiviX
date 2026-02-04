@@ -84,51 +84,37 @@ async function transcribeAudio(audioBuffer, languageCode = 'en-US') {
   }
 
   try {
-    // Try to detect audio format from buffer
-    // M4A files start with specific bytes
-    let encoding = 'LINEAR16'; // Default
-    let sampleRate = 44100; // Default
+    // Detect audio format - Google Speech API supports: FLAC, LINEAR16, MULAW, AMR, AMR_WB, OGG_OPUS, SPEEX_WITH_HEADER_BYTE, MP3 (beta)
+    // M4A/AAC is NOT supported - mobile app records OGG Opus
+    let encoding = 'OGG_OPUS';
+    let sampleRate = 48000;
     
-    // Check if it's M4A/AAC format (common from mobile recorders)
-    // M4A files typically start with 'ftyp' (66747970) or have 'M4A' in header
     if (audioBuffer.length > 12) {
       const header = audioBuffer.slice(0, 12).toString('hex');
       const headerStr = audioBuffer.slice(0, 12).toString('ascii', 0, 12);
       
-      if (header.includes('66747970') || headerStr.includes('M4A') || headerStr.includes('ftyp') || header.includes('6d7034')) {
-        // M4A/AAC format - v1p1beta1 supports M4A_AAC encoding
-        encoding = 'M4A_AAC';
-        sampleRate = 44100;
-      } else if (header.includes('52494646') || headerStr.includes('RIFF')) {
-        // WAV format
-        encoding = 'LINEAR16';
-        sampleRate = 44100;
-      } else if (headerStr.includes('Ogg') || header.includes('4f676753')) {
-        // OGG format
+      if (headerStr.includes('Ogg') || header.includes('4f676753')) {
         encoding = 'OGG_OPUS';
         sampleRate = 48000;
-      } else {
-        // Default to MP3 for mobile recordings (most common)
+      } else if (header.includes('66747970') || headerStr.includes('M4A') || headerStr.includes('ftyp')) {
+        // M4A/AAC - NOT supported by Google. Reject with clear message.
+        throw new Error('M4A/AAC format is not supported. Please record in voice memo and ensure the app uses OGG Opus format.');
+      } else if (header.includes('52494646') || headerStr.includes('RIFF')) {
+        encoding = 'LINEAR16';
+        sampleRate = 44100;
+      } else if (headerStr.slice(0, 3) === 'ID3' || header.includes('fffb') || header.includes('fff3')) {
         encoding = 'MP3';
         sampleRate = 44100;
       }
     }
 
-    // Build config object - M4A_AAC doesn't require sampleRateHertz
     const config = {
-      encoding: encoding,
-      languageCode: languageCode,
-      alternativeLanguageCodes: ['en-US', 'hi-IN', 'te-IN'], // Support multiple languages
+      encoding,
+      languageCode,
+      alternativeLanguageCodes: ['en-US', 'hi-IN', 'te-IN'],
       enableAutomaticPunctuation: true,
+      sampleRateHertz: sampleRate,
     };
-
-    // Add sampleRateHertz only for encodings that require it
-    // M4A_AAC can auto-detect sample rate
-    if (encoding !== 'M4A_AAC' && encoding !== 'MP4_AAC' && encoding !== 'MP3') {
-      config.sampleRateHertz = sampleRate;
-    } else if (encoding === 'MP3') {
-      config.sampleRateHertz = sampleRate;
-    }
 
     const request = {
       audio: {

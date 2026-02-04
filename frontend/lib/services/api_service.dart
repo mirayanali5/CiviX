@@ -99,8 +99,8 @@ class ApiService {
       'photo': await MultipartFile.fromFile(photo.path),
       if (audio != null) 'audio': await MultipartFile.fromFile(
         audio!.path,
-        filename: 'recording.m4a',
-        contentType: MediaType('audio', 'mp4'),
+        filename: 'recording.ogg',
+        contentType: MediaType('audio', 'ogg'),
       ),
       if (description != null && description.isNotEmpty) 'description': description,
       'gps_lat': lat.toString(),
