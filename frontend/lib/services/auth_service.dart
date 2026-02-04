@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'config/supabase_config.dart';
+import '../config/supabase_config.dart';
 import 'api_service.dart';
 
 class AuthService {
@@ -132,40 +132,46 @@ class AuthService {
       // Step 1: Sign in with Google via Supabase OAuth
       final supabase = Supabase.instance.client;
       
-      // Check if Supabase is initialized
-      if (supabase.supabaseUrl.isEmpty) {
+      // Check if Supabase is initialized by checking if we can access auth
+      try {
+        // Try to access auth - if Supabase isn't initialized, this will throw
+        final _ = supabase.auth;
+      } catch (e) {
         lastErrorMessage = 'Supabase is not configured. Please check your configuration.';
         return false;
       }
 
       // Initiate Google OAuth flow
+      // This will open browser/OAuth flow and return when user completes or cancels
       await supabase.auth.signInWithOAuth(
         OAuthProvider.google,
         redirectTo: SupabaseConfig.redirectUrl,
       );
 
-      // Wait for the OAuth callback and get the session
-      // Note: In a real app, you'd handle the deep link callback
-      // For now, we'll check if there's an existing session
-      final session = await supabase.auth.getSession();
+      // Check if OAuth was successful by checking current session
+      // Note: After OAuth completes, the deep link callback should update the session
+      // We need to wait a moment for the session to be updated
+      await Future.delayed(const Duration(milliseconds: 500));
       
-      if (session.data?.session == null) {
+      final session = supabase.auth.currentSession;
+      
+      if (session == null) {
         // User cancelled or OAuth didn't complete
         lastErrorMessage = 'Google sign-in was cancelled or failed';
         return false;
       }
 
-      final accessToken = session.data!.session!.accessToken;
+      final accessToken = session.accessToken;
       
       // Step 2: Save Supabase token temporarily
       await _saveToken(accessToken);
 
       // Step 3: Call backend to sync profile
-      final response = await _apiService.loginWithGoogle();
+      final apiResponse = await _apiService.loginWithGoogle();
 
-      if (response.statusCode == 200 && response.data != null) {
-        final token = response.data['token'];
-        final user = response.data['user'];
+      if (apiResponse.statusCode == 200 && apiResponse.data != null) {
+        final token = apiResponse.data['token'];
+        final user = apiResponse.data['user'];
         if (token != null && user != null) {
           // Backend returns the same Supabase token (or a new one)
           await _saveToken(token.toString());
@@ -174,7 +180,7 @@ class AuthService {
         }
       }
       
-      lastErrorMessage = _getMessage(response.data, 'Google login failed');
+      lastErrorMessage = _getMessage(apiResponse.data, 'Google login failed');
       return false;
     } on DioException catch (e) {
       lastErrorMessage = _errorMessage(e);
