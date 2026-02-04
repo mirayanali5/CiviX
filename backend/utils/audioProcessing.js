@@ -17,18 +17,10 @@ function initializeGoogleClients() {
 
   try {
     const projectId = process.env.GOOGLE_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT_ID;
-    
-    // Check if using service account key file path
-    if (process.env.GOOGLE_STT_KEY || process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-      const keyPath = process.env.GOOGLE_STT_KEY || process.env.GOOGLE_APPLICATION_CREDENTIALS;
-      process.env.GOOGLE_APPLICATION_CREDENTIALS = keyPath;
-      speechClient = new speech.SpeechClient(); // v1p1beta1 supports M4A_AAC
-      translateClient = new Translate({
-        projectId: projectId
-      });
-    }
-    // Check if using direct credentials (client_email and private_key)
-    else if (process.env.GOOGLE_CLIENT_EMAIL && process.env.GOOGLE_PRIVATE_KEY && projectId) {
+
+    // Prefer inline credentials - work on all platforms (local, Render, etc.)
+    // File paths like C:/... fail on Linux servers
+    if (process.env.GOOGLE_CLIENT_EMAIL && process.env.GOOGLE_PRIVATE_KEY && projectId) {
       const credentials = {
         type: 'service_account',
         project_id: projectId,
@@ -50,6 +42,21 @@ function initializeGoogleClients() {
         credentials: credentials,
         projectId: projectId
       });
+      console.log('   Google Cloud: Using inline credentials (GOOGLE_CLIENT_EMAIL + GOOGLE_PRIVATE_KEY)');
+    }
+    // Fallback: service account key file path (works locally, avoid on Render)
+    else if (process.env.GOOGLE_STT_KEY || process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+      const keyPath = process.env.GOOGLE_STT_KEY || process.env.GOOGLE_APPLICATION_CREDENTIALS;
+      // Skip Windows paths on Linux (e.g. Render) - they fail with ENOENT
+      const isWindowsPath = /^[A-Za-z]:[\\/]/.test(keyPath);
+      if (isWindowsPath && process.platform !== 'win32') {
+        console.warn('   GOOGLE_STT_KEY is a Windows path but server runs on Linux - use GOOGLE_CLIENT_EMAIL + GOOGLE_PRIVATE_KEY instead');
+      } else if (fs.existsSync(keyPath)) {
+        process.env.GOOGLE_APPLICATION_CREDENTIALS = keyPath;
+        speechClient = new speech.SpeechClient();
+        translateClient = new Translate({ projectId });
+        console.log('   Google Cloud: Using key file');
+      }
     }
   } catch (error) {
     console.warn('⚠️  Google Cloud credentials not configured. Audio processing will be limited.');
