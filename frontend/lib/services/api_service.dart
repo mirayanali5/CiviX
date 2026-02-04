@@ -82,6 +82,10 @@ class ApiService {
     });
   }
 
+  Future<Response> loginWithGoogle() async {
+    return await _dio.post('/auth/login/google');
+  }
+
   Future<Response> getCurrentUser() async {
     return await _dio.get('/auth/me');
   }

@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'config/supabase_config.dart';
 import 'api_service.dart';
 
 class AuthService {
@@ -120,6 +122,67 @@ class AuthService {
     } catch (e) {
       lastErrorMessage = e.toString();
       print('Authority login error: $e');
+      return false;
+    }
+  }
+
+  Future<bool> loginWithGoogle() async {
+    lastErrorMessage = null;
+    try {
+      // Step 1: Sign in with Google via Supabase OAuth
+      final supabase = Supabase.instance.client;
+      
+      // Check if Supabase is initialized
+      if (supabase.supabaseUrl.isEmpty) {
+        lastErrorMessage = 'Supabase is not configured. Please check your configuration.';
+        return false;
+      }
+
+      // Initiate Google OAuth flow
+      await supabase.auth.signInWithOAuth(
+        OAuthProvider.google,
+        redirectTo: SupabaseConfig.redirectUrl,
+      );
+
+      // Wait for the OAuth callback and get the session
+      // Note: In a real app, you'd handle the deep link callback
+      // For now, we'll check if there's an existing session
+      final session = await supabase.auth.getSession();
+      
+      if (session.data?.session == null) {
+        // User cancelled or OAuth didn't complete
+        lastErrorMessage = 'Google sign-in was cancelled or failed';
+        return false;
+      }
+
+      final accessToken = session.data!.session!.accessToken;
+      
+      // Step 2: Save Supabase token temporarily
+      await _saveToken(accessToken);
+
+      // Step 3: Call backend to sync profile
+      final response = await _apiService.loginWithGoogle();
+
+      if (response.statusCode == 200 && response.data != null) {
+        final token = response.data['token'];
+        final user = response.data['user'];
+        if (token != null && user != null) {
+          // Backend returns the same Supabase token (or a new one)
+          await _saveToken(token.toString());
+          await _saveUser(Map<String, dynamic>.from(user));
+          return true;
+        }
+      }
+      
+      lastErrorMessage = _getMessage(response.data, 'Google login failed');
+      return false;
+    } on DioException catch (e) {
+      lastErrorMessage = _errorMessage(e);
+      print('Google login error: $lastErrorMessage');
+      return false;
+    } catch (e) {
+      lastErrorMessage = e.toString();
+      print('Google login error: $e');
       return false;
     }
   }

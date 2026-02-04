@@ -124,6 +124,28 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
+  Future<bool> loginWithGoogle() async {
+    _isLoading = true;
+    _lastErrorMessage = null;
+    notifyListeners();
+
+    try {
+      final success = await _authService.loginWithGoogle();
+      _lastErrorMessage = _authService.lastErrorMessage;
+      if (success) {
+        _user = await _authService.getUser();
+      }
+      _isLoading = false;
+      notifyListeners();
+      return success;
+    } catch (e) {
+      _lastErrorMessage = _authService.lastErrorMessage ?? e.toString();
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<void> logout() async {
     await _authService.logout();
     _user = null;

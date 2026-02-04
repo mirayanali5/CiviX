@@ -73,6 +73,29 @@ class _CitizenLoginScreenState extends State<CitizenLoginScreen> {
     }
   }
 
+  Future<void> _handleGoogleLogin() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final success = await authProvider.loginWithGoogle();
+
+    if (success && mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const CitizenDashboardScreen()),
+      );
+    } else if (mounted) {
+      final msg = authProvider.lastErrorMessage?.isNotEmpty == true
+          ? authProvider.lastErrorMessage!
+          : 'Google login failed. Please try again.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(msg),
+          backgroundColor: Colors.red.shade700,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_connecting) {
@@ -208,6 +231,35 @@ class _CitizenLoginScreenState extends State<CitizenLoginScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
                 child: Text(isLoading ? 'Logging in…' : 'Login'),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(child: Divider(color: Colors.grey.shade400)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(
+                      'OR',
+                      style: TextStyle(color: Colors.grey.shade600),
+                    ),
+                  ),
+                  Expanded(child: Divider(color: Colors.grey.shade400)),
+                ],
+              ),
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: isLoading ? null : _handleGoogleLogin,
+                icon: Image.network(
+                  'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg',
+                  height: 20,
+                  width: 20,
+                  errorBuilder: (_, __, ___) => const Icon(Icons.login, size: 20),
+                ),
+                label: Text(isLoading ? 'Signing in…' : 'Continue with Google'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  side: BorderSide(color: Colors.grey.shade400),
+                ),
               ),
               const SizedBox(height: 16),
               TextButton(

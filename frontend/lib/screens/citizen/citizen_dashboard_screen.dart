@@ -464,31 +464,36 @@ class _ComplaintCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    InkWell(
-                      onTap: onUpvote,
-                      borderRadius: BorderRadius.circular(20),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.favorite_border,
-                              size: 18,
-                              color: AppTheme.primaryTeal,
+                    Consumer<ComplaintProvider>(
+                      builder: (context, provider, _) {
+                        final isUpvoted = provider.isUpvoted(complaint['id']?.toString() ?? '');
+                        return InkWell(
+                          onTap: onUpvote,
+                          borderRadius: BorderRadius.circular(20),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  isUpvoted ? Icons.favorite : Icons.favorite_border,
+                                  size: 18,
+                                  color: isUpvoted ? Colors.red : AppTheme.primaryTeal,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${complaint['upvote_count'] ?? 0}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: isUpvoted ? Colors.red : AppTheme.primaryTeal,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${complaint['upvote_count'] ?? 0}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppTheme.primaryTeal,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),

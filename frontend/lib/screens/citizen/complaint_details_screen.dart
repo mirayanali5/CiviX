@@ -71,17 +71,29 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Image.network(
-                            complaint['photo_url'] ?? complaint['image_url'],
-                            height: 220,
-                            width: double.infinity,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => _FullScreenImage(
+                                  imageUrl: complaint['photo_url'] ?? complaint['image_url'],
+                                ),
+                              ),
+                            );
+                          },
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.network(
+                              complaint['photo_url'] ?? complaint['image_url'],
                               height: 220,
-                              color: AppTheme.surfaceCard,
-                              child: const Icon(Icons.image_not_supported, size: 48, color: AppTheme.textSecondary),
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                height: 220,
+                                color: AppTheme.surfaceCard,
+                                child: const Icon(Icons.image_not_supported, size: 48, color: AppTheme.textSecondary),
+                              ),
                             ),
                           ),
                         ),
@@ -90,29 +102,34 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
                   ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            complaint['transcript'] ?? 'No description',
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                complaint['transcript'] ?? 'No description',
+                                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                maxLines: null,
+                                overflow: TextOverflow.visible,
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          Chip(
-                            label: Text(complaint['status'] ?? 'Open'),
-                            backgroundColor: _getStatusColor(complaint['status']).withOpacity(0.25),
-                            labelStyle: TextStyle(
-                              color: _getStatusColor(complaint['status']),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
+                            const SizedBox(width: 8),
+                            Chip(
+                              label: Text(complaint['status'] ?? 'Open'),
+                              backgroundColor: _getStatusColor(complaint['status']).withOpacity(0.25),
+                              labelStyle: TextStyle(
+                                color: _getStatusColor(complaint['status']),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
+                          ],
+                        ),
                       const SizedBox(height: 12),
                       if (complaint['department'] != null)
                         Chip(
@@ -222,23 +239,36 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          IconButton(
-                            icon: const Icon(Icons.favorite_border, color: AppTheme.primaryTeal),
-                            onPressed: () async {
-                              final success = await provider.upvoteComplaint(widget.complaintId);
-                              if (success && mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Upvoted!'),
-                                    backgroundColor: AppTheme.primaryTeal,
-                                  ),
-                                );
-                              }
+                          Consumer<ComplaintProvider>(
+                            builder: (context, provider, _) {
+                              final isUpvoted = provider.isUpvoted(widget.complaintId);
+                              return IconButton(
+                                icon: Icon(
+                                  isUpvoted ? Icons.favorite : Icons.favorite_border,
+                                  color: isUpvoted ? Colors.red : AppTheme.primaryTeal,
+                                ),
+                                onPressed: () async {
+                                  final success = await provider.upvoteComplaint(widget.complaintId);
+                                  if (success && mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(isUpvoted ? 'Upvote removed' : 'Upvoted!'),
+                                        backgroundColor: AppTheme.primaryTeal,
+                                      ),
+                                    );
+                                  }
+                                },
+                              );
                             },
                           ),
-                          Text(
-                            '${complaint['upvote_count'] ?? 0} upvotes',
-                            style: Theme.of(context).textTheme.bodyMedium,
+                          Consumer<ComplaintProvider>(
+                            builder: (context, provider, _) {
+                              final complaint = provider.selectedComplaint;
+                              return Text(
+                                '${complaint?['upvote_count'] ?? 0} upvotes',
+                                style: Theme.of(context).textTheme.bodyMedium,
+                              );
+                            },
                           ),
                         ],
                       ),
@@ -334,6 +364,36 @@ class _TimelineItem extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _FullScreenImage extends StatelessWidget {
+  final String imageUrl;
+
+  const _FullScreenImage({required this.imageUrl});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      body: Center(
+        child: InteractiveViewer(
+          minScale: 0.5,
+          maxScale: 4.0,
+          child: Image.network(
+            imageUrl,
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => const Center(
+              child: Icon(Icons.image_not_supported, size: 48, color: Colors.white),
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -125,8 +125,16 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
                           ),
                           const SizedBox(height: 16),
                           _ProfileRow(
-                            label: 'User Email',
-                            value: _profile!['email'] ?? 'N/A',
+                            label: 'Name',
+                            value: _profile!['name']?.toString().trim().isNotEmpty == true
+                                ? _profile!['name'].toString()
+                                : 'N/A',
+                          ),
+                          _ProfileRow(
+                            label: 'Email',
+                            value: _profile!['email']?.toString().trim().isNotEmpty == true
+                                ? _profile!['email'].toString()
+                                : 'N/A',
                           ),
                           _ProfileRow(
                             label: 'Account Type',

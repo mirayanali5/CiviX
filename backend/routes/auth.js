@@ -4,6 +4,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const pool = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
+const supabase = require('../config/supabase');
 
 // Citizen Signup
 router.post('/signup', async (req, res) => {
@@ -130,6 +131,140 @@ router.post('/login', async (req, res) => {
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * Citizen Login with Google (Supabase Auth)
+ *
+ * This route is intended for clients that already have a valid Supabase
+ * access token (e.g. obtained via `supabase.auth.signInWithOAuth(OAuthProvider.google)`).
+ *
+ * Flow (high level):
+ * - Flutter app uses Supabase Auth (Google provider) to sign in and obtains a JWT access token.
+ * - The app sends a POST request to /auth/login/google with `Authorization: Bearer <supabase_jwt>`.
+ * - This route verifies the token (via authenticateToken), ensures the account is a citizen,
+ *   upserts a row in the `profiles` table (if missing), and returns a response compatible
+ *   with the existing email/password login (token + user object).
+ *
+ * IMPORTANT:
+ * - JWT_SECRET or SUPABASE_JWT_SECRET in the backend .env MUST match the JWT secret
+ *   configured in Supabase Auth so that authenticateToken can verify Supabase tokens.
+ * - Google login is only allowed for citizen accounts. Authority accounts must continue
+ *   to use the existing /auth/authority/login route with email/password.
+ */
+router.post('/login/google', authenticateToken, async (req, res) => {
+  try {
+    // authenticateToken sets req.user for a valid JWT.
+    // For Supabase tokens, req.user will be derived from decoded.sub / decoded.email.
+    const authUser = req.user;
+
+    if (!authUser || !authUser.id) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    // Google / Supabase Auth is only for citizens.
+    // We will always enforce role = 'citizen' in profiles for this route.
+
+    // First, check if a profile already exists for this Supabase user id
+    const existing = await pool.query(
+      'SELECT id, full_name, email, role, department, account_type, created_at FROM profiles WHERE id = $1::uuid',
+      [authUser.id]
+    );
+
+    let profile;
+
+    if (existing.rows.length > 0) {
+      profile = existing.rows[0];
+
+      // If this profile was somehow marked as authority, block Google login for safety
+      if (profile.role === 'authority') {
+        return res.status(403).json({
+          error: 'Google login is only available for citizen accounts',
+        });
+      }
+
+      // Ensure role is citizen for Google-based logins
+      if (profile.role !== 'citizen') {
+        const updated = await pool.query(
+          `UPDATE profiles
+           SET role = 'citizen'
+           WHERE id = $1::uuid
+           RETURNING id, full_name, email, role, department, account_type, created_at`,
+          [authUser.id]
+        );
+        profile = updated.rows[0];
+      }
+    } else {
+      // No profile row yet – create one from Supabase Auth user metadata
+      if (!supabase) {
+        return res.status(500).json({
+          error: 'Supabase is not configured on the server. Google login cannot be used right now.',
+        });
+      }
+
+      const { data, error } = await supabase.auth.admin.getUserById(authUser.id);
+
+      if (error || !data || !data.user) {
+        console.error('Supabase admin getUserById error:', error || 'No user in data');
+        return res.status(500).json({
+          error: 'Could not fetch user details from Supabase for Google login',
+        });
+      }
+
+      const supaUser = data.user;
+      const email = (supaUser.email || '').toString().trim().toLowerCase();
+      const fullName =
+        (supaUser.user_metadata &&
+          (supaUser.user_metadata.full_name ||
+            supaUser.user_metadata.name ||
+            supaUser.user_metadata.display_name)) ||
+        email.split('@')[0] ||
+        null;
+
+      // Default account_type for Google-based citizen accounts – keep it public
+      const accountType = 'public';
+
+      const created = await pool.query(
+        `INSERT INTO profiles (id, email, full_name, account_type, role, department, password)
+         VALUES ($1::uuid, $2, $3, $4, 'citizen', NULL, NULL)
+         RETURNING id, full_name, email, role, department, account_type, created_at`,
+        [supaUser.id, email || null, fullName, accountType]
+      );
+
+      profile = created.rows[0];
+    }
+
+    // Reuse the Supabase JWT that the client already has.
+    // For consistency with other login responses we still return a `token` field.
+    const authHeader = req.headers['authorization'] || '';
+    const token =
+      typeof authHeader === 'string' && authHeader.startsWith('Bearer ')
+        ? authHeader.split(' ')[1]
+        : null;
+
+    if (!token) {
+      return res.status(500).json({
+        error: 'Missing bearer token in request',
+      });
+    }
+
+    return res.json({
+      message: 'Login successful',
+      user: {
+        id: profile.id,
+        name: profile.full_name,
+        email: profile.email,
+        role: profile.role,
+        department: profile.department,
+        account_type: profile.account_type,
+        created_at: profile.created_at,
+      },
+      token,
+    });
+  } catch (error) {
+    console.error('Google login error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 

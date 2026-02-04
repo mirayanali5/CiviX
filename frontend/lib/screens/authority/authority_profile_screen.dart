@@ -162,6 +162,11 @@ class _AuthorityProfileScreenState extends State<AuthorityProfileScreen> {
                             value: (_profile!['role'] ?? 'authority').toString().toUpperCase(),
                             isDark: isDark,
                           ),
+                          _ProfileRow(
+                            label: 'Account Type',
+                            value: (_profile!['account_type'] ?? 'private').toString().toUpperCase(),
+                            isDark: isDark,
+                          ),
                         ],
                       ),
                     ),
