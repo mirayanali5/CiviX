@@ -128,8 +128,24 @@ router.post('/', upload.fields([
       });
     }
 
+  // Classify department (AI-based) as a default
+    const classification = await classifyDepartment(finalDescription);
+
+    // If citizen explicitly selected a department, prefer that over AI classification.
+    // Normalize and only accept values that match our known DEPARTMENTS list.
+    let finalDepartment = classification.department;
+    if (userDepartment && typeof userDepartment === 'string') {
+      const normalized = userDepartment.trim().toLowerCase();
+      const matchedDept = DEPARTMENTS.find(
+        (d) => d.trim().toLowerCase() === normalized
+      );
+      if (matchedDept) {
+        finalDepartment = matchedDept;
+      }
+    }
+
     // Check for duplicates
-    const duplicateCheck = await checkDuplicate(lat, lon, finalDescription, req.user?.id);
+    const duplicateCheck = await checkDuplicate(lat, lon, finalDepartment, finalDescription, req.user?.id);
     
     if (duplicateCheck.isDuplicate) {
       const existingComplaint = duplicateCheck.existingComplaint;
@@ -183,22 +199,6 @@ router.post('/', upload.fields([
       } catch (error) {
         console.error('Audio upload error:', error);
         // Continue without audio URL
-      }
-    }
-
-    // Classify department (AI-based) as a default
-    const classification = await classifyDepartment(finalDescription);
-
-    // If citizen explicitly selected a department, prefer that over AI classification.
-    // Normalize and only accept values that match our known DEPARTMENTS list.
-    let finalDepartment = classification.department;
-    if (userDepartment && typeof userDepartment === 'string') {
-      const normalized = userDepartment.trim().toLowerCase();
-      const matchedDept = DEPARTMENTS.find(
-        (d) => d.trim().toLowerCase() === normalized
-      );
-      if (matchedDept) {
-        finalDepartment = matchedDept;
       }
     }
 
