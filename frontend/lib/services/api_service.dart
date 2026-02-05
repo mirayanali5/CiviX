@@ -113,18 +113,21 @@ class ApiService {
     required double lat,
     required double lon,
     List<String>? tags,
+    String? department, // optional department selected by citizen
   }) async {
     final formData = FormData.fromMap({
       'photo': await MultipartFile.fromFile(photo.path),
-      if (audio != null) 'audio': await MultipartFile.fromFile(
-        audio!.path,
-        filename: 'recording.ogg',
-        contentType: MediaType('audio', 'ogg'),
-      ),
+      if (audio != null)
+        'audio': await MultipartFile.fromFile(
+          audio!.path,
+          filename: 'recording.ogg',
+          contentType: MediaType('audio', 'ogg'),
+        ),
       if (description != null && description.isNotEmpty) 'description': description,
       'gps_lat': lat.toString(),
       'gps_long': lon.toString(),
       if (tags != null) 'tags': tags.join(','),
+      if (department != null && department.isNotEmpty) 'department': department,
     });
 
     return await _dio.post('/complaints', data: formData);

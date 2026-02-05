@@ -26,6 +26,17 @@ class _LodgeComplaintScreenState extends State<LodgeComplaintScreen> {
   final ApiService _apiService = ApiService();
   final AudioRecorder _audioRecorder = AudioRecorder();
 
+  // Optional department selection by citizen
+  static const List<String> _departments = [
+    'GHMC Sanitation',
+    'GHMC Road and Engineering',
+    'HMWSSB',
+    'TSSPDCL',
+    'GHMC Town Planning',
+    'GHMC Public Health / Entomology',
+  ];
+  String? _selectedDepartment;
+
   File? _photo;
   File? _audioFile;
   Position? _position;
@@ -282,6 +293,7 @@ class _LodgeComplaintScreenState extends State<LodgeComplaintScreen> {
         lat: _position!.latitude,
         lon: _position!.longitude,
         tags: tags,
+        department: _selectedDepartment,
       );
 
       if (mounted) {
@@ -470,6 +482,33 @@ class _LodgeComplaintScreenState extends State<LodgeComplaintScreen> {
                     const Text('Recorded'),
                   ],
                 ],
+              ),
+              const SizedBox(height: 24),
+              // Department Section (optional)
+              const Text(
+                'Department (optional)',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                value: _selectedDepartment,
+                decoration: const InputDecoration(
+                  hintText: 'Select department (or leave blank)',
+                  border: OutlineInputBorder(),
+                ),
+                items: _departments
+                    .map(
+                      (dept) => DropdownMenuItem<String>(
+                        value: dept,
+                        child: Text(dept),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedDepartment = value;
+                  });
+                },
               ),
               const SizedBox(height: 24),
               // Tags Section

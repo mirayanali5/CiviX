@@ -2,32 +2,38 @@ const haversine = require('haversine-distance');
 const stringSimilarity = require('string-similarity');
 const pool = require('../config/database');
 
-const DUPLICATE_RADIUS_METERS = 250;
+const DUPLICATE_RADIUS_METERS = 10;
 const TEXT_SIMILARITY_THRESHOLD = 0.3;
 
 /**
  * Check if a complaint is a duplicate
  * Returns { isDuplicate: boolean, existingComplaint: object | null }
  */
-async function checkDuplicate(lat, lon, description, userId = null) {
-  try {
+// async function checkDuplicate(lat, lon, description, userId = null) {
+   async function checkDuplicate(lat, lon, department, description, userId = null)
+   {try {
     // Get bounding box (approximately 300m)
-    const latDelta = 0.0027; // ~300m
-    const lonDelta = 0.0027;
+    // const latDelta = 0.0027; // ~300m
+    // const lonDelta = 0.0027;
+    const latDelta = 15 / 111320;
+    const lonDelta = 15 / (111320 * Math.cos(lat * Math.PI / 180));
 
     const query = `
-      SELECT id, user_id, guest_id, transcript, latitude, longitude, status, report_count
+      SELECT id, user_id, guest_id, transcript,department,latitude, longitude, status, report_count
       FROM complaints
       WHERE latitude BETWEEN $1 AND $2
         AND longitude BETWEEN $3 AND $4
         AND status = 'open'
+        AND department = $5
+
     `;
 
     const result = await pool.query(query, [
       lat - latDelta,
       lat + latDelta,
       lon - lonDelta,
-      lon + lonDelta
+      lon + lonDelta,
+      department
     ]);
 
     if (result.rows.length === 0) {

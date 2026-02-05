@@ -5,7 +5,7 @@ const { v4: uuidv4 } = require('uuid');
 const pool = require('../config/database');
 const supabase = require('../config/supabase');
 const { authenticateToken } = require('../middleware/auth');
-const { classifyDepartment, generateAutoTags } = require('../utils/aiClassification');
+const { classifyDepartment, generateAutoTags, DEPARTMENTS } = require('../utils/aiClassification');
 const { checkDuplicate, autoUpvote } = require('../utils/duplicateDetection');
 const { processAudio } = require('../utils/audioProcessing');
 
@@ -61,7 +61,7 @@ router.post('/', upload.fields([
   authenticateToken(req, res, next);
 }, async (req, res) => {
   try {
-    const { description, tags, gps_lat, gps_long } = req.body;
+    const { description, tags, gps_lat, gps_long, department: userDepartment } = req.body;
     const photo = req.files?.photo?.[0];
     const audio = req.files?.audio?.[0];
 
@@ -186,15 +186,28 @@ router.post('/', upload.fields([
       }
     }
 
-    // Classify department
+    // Classify department (AI-based) as a default
     const classification = await classifyDepartment(finalDescription);
+
+    // If citizen explicitly selected a department, prefer that over AI classification.
+    // Normalize and only accept values that match our known DEPARTMENTS list.
+    let finalDepartment = classification.department;
+    if (userDepartment && typeof userDepartment === 'string') {
+      const normalized = userDepartment.trim().toLowerCase();
+      const matchedDept = DEPARTMENTS.find(
+        (d) => d.trim().toLowerCase() === normalized
+      );
+      if (matchedDept) {
+        finalDepartment = matchedDept;
+      }
+    }
 
     // Determine user_id (UUID) or guest_id (text)
     const userId = req.user ? req.user.id : null;
     const guestId = req.user ? null : `guest_${uuidv4()}`;
 
     // Auto-generate tags based on department and description
-    const autoTags = generateAutoTags(finalDescription, classification.department);
+    const autoTags = generateAutoTags(finalDescription, finalDepartment);
     
     // Parse user-provided tags (if any)
     const userTags = tags ? (Array.isArray(tags) ? tags : tags.split(',').map(t => t.trim()).filter(t => t)) : [];
@@ -215,7 +228,7 @@ router.post('/', upload.fields([
         finalDescription,
         rawTranscript || finalDescription,
         translatedTranscript || finalDescription,
-        classification.department,
+        finalDepartment,
         tagsArray,
         lat,
         lon,
