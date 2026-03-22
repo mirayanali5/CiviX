@@ -1,5 +1,357 @@
+// import 'package:flutter/material.dart';
+// import 'package:permission_handler/permission_handler.dart';
+// import 'package:geolocator/geolocator.dart';
+// import '../services/permission_service.dart';
+// import 'role_selection_screen.dart';
+
+// class PermissionScreen extends StatefulWidget {
+//   const PermissionScreen({super.key});
+
+//   @override
+//   State<PermissionScreen> createState() => _PermissionScreenState();
+// }
+
+// class _PermissionScreenState extends State<PermissionScreen> {
+//   bool _isLoading = true;
+//   bool _gpsEnabled = false;
+//   Map<String, bool> _permissions = {};
+//   bool _hasRequested = false;
+
+//   @override
+//   void initState() {
+//     super.initState();
+//     _checkPermissions();
+//   }
+
+//   Future<void> _checkPermissions() async {
+//     try {
+//       setState(() {
+//         _isLoading = true;
+//       });
+
+//       // Check GPS first (most critical - app cannot start without it)
+//       final locationEnabled = await Geolocator.isLocationServiceEnabled();
+      
+//       setState(() {
+//         _gpsEnabled = locationEnabled;
+//         _isLoading = false;
+//       });
+
+//       if (!locationEnabled) {
+//         // GPS is off - show prompt, don't proceed
+//         return;
+//       }
+
+//       // GPS is on, now request other permissions
+//       if (!_hasRequested) {
+//         await _requestPermissions();
+//       }
+//     } catch (e) {
+//       print('Error checking permissions: $e');
+//       setState(() {
+//         _isLoading = false;
+//         // If GPS check fails, assume it's enabled and proceed
+//         _gpsEnabled = true;
+//       });
+//       // Try to request permissions anyway
+//       if (!_hasRequested) {
+//         await _requestPermissions();
+//       }
+//     }
+//   }
+
+//   Future<void> _requestPermissions() async {
+//     try {
+//       setState(() {
+//         _isLoading = true;
+//         _hasRequested = true;
+//       });
+
+//       // Request all permissions
+//       final results = await PermissionService.requestAllPermissions();
+
+//       setState(() {
+//         _permissions = results;
+//         _isLoading = false;
+//       });
+
+//       // Check if we can proceed (GPS enabled + location permission)
+//       // If location permission check fails, proceed anyway (user can grant later)
+//       final canProceed = (results['locationEnabled'] == true && results['location'] == true) ||
+//                          (results['locationEnabled'] == true && results['location'] != false);
+      
+//       if (canProceed || _gpsEnabled) {
+//         // Wait a moment then navigate
+//         await Future.delayed(const Duration(milliseconds: 500));
+//         if (mounted) {
+//           _navigateToApp();
+//         }
+//       }
+//     } catch (e) {
+//       print('Error requesting permissions: $e');
+//       setState(() {
+//         _isLoading = false;
+//       });
+//       // If permission request fails, proceed anyway after a delay
+//       await Future.delayed(const Duration(seconds: 1));
+//       if (mounted) {
+//         _navigateToApp();
+//       }
+//     }
+//   }
+
+//   Future<void> _enableGPS() async {
+//     final enabled = await Geolocator.openLocationSettings();
+//     if (enabled || mounted) {
+//       // Wait a moment for GPS to enable
+//       await Future.delayed(const Duration(seconds: 1));
+//       await _checkPermissions();
+//     }
+//   }
+
+//   void _navigateToApp() {
+//     if (mounted) {
+//       Navigator.of(context).pushReplacement(
+//         MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
+//       );
+//     }
+//   }
+
+//   @override
+//   Widget build(BuildContext context) {
+//     if (_isLoading) {
+//       return Scaffold(
+//         body: Center(
+//           child: Column(
+//             mainAxisAlignment: MainAxisAlignment.center,
+//             children: [
+//               const CircularProgressIndicator(),
+//               const SizedBox(height: 20),
+//               const Text('Checking permissions...'),
+//             ],
+//           ),
+//         ),
+//       );
+//     }
+
+//     // GPS is not enabled - BLOCK APP START
+//     if (!_gpsEnabled) {
+//       return Scaffold(
+//         body: SafeArea(
+//           child: Padding(
+//             padding: const EdgeInsets.all(24.0),
+//             child: Column(
+//               mainAxisAlignment: MainAxisAlignment.center,
+//               children: [
+//                 const Icon(
+//                   Icons.location_off,
+//                   size: 100,
+//                   color: Colors.red,
+//                 ),
+//                 const SizedBox(height: 24),
+//                 const Text(
+//                   'GPS Required',
+//                   style: TextStyle(
+//                     fontSize: 32,
+//                     fontWeight: FontWeight.bold,
+//                   ),
+//                 ),
+//                 const SizedBox(height: 16),
+//                 const Text(
+//                   'CiviX cannot start without GPS enabled.',
+//                   textAlign: TextAlign.center,
+//                   style: TextStyle(
+//                     fontSize: 18,
+//                     fontWeight: FontWeight.w500,
+//                   ),
+//                 ),
+//                 const SizedBox(height: 8),
+//                 const Text(
+//                   'GPS is required to tag complaint locations accurately. Please enable location services to continue.',
+//                   textAlign: TextAlign.center,
+//                   style: TextStyle(fontSize: 16, color: Colors.grey),
+//                 ),
+//                 const SizedBox(height: 48),
+//                 ElevatedButton.icon(
+//                   onPressed: _enableGPS,
+//                   icon: const Icon(Icons.settings, size: 24),
+//                   label: const Text(
+//                     'Enable GPS in Settings',
+//                     style: TextStyle(fontSize: 18),
+//                   ),
+//                   style: ElevatedButton.styleFrom(
+//                     padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 18),
+//                     backgroundColor: Colors.blue,
+//                     minimumSize: const Size(double.infinity, 56),
+//                   ),
+//                 ),
+//                 const SizedBox(height: 16),
+//                 OutlinedButton.icon(
+//                   onPressed: _checkPermissions,
+//                   icon: const Icon(Icons.refresh),
+//                   label: const Text('I\'ve Enabled GPS'),
+//                   style: OutlinedButton.styleFrom(
+//                     padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 18),
+//                     minimumSize: const Size(double.infinity, 56),
+//                   ),
+//                 ),
+//               ],
+//             ),
+//           ),
+//         ),
+//       );
+//     }
+
+//     // GPS is enabled, show permission status
+//     final locationGranted = _permissions['location'] ?? false;
+//     final cameraGranted = _permissions['camera'] ?? false;
+//     final micGranted = _permissions['microphone'] ?? false;
+
+//     // If location is not granted yet, request it
+//     if (!locationGranted && !_hasRequested) {
+//       WidgetsBinding.instance.addPostFrameCallback((_) {
+//         _requestPermissions();
+//       });
+//     }
+
+//     return Scaffold(
+//       body: SafeArea(
+//         child: Padding(
+//           padding: const EdgeInsets.all(24.0),
+//           child: Column(
+//             mainAxisAlignment: MainAxisAlignment.center,
+//             children: [
+//               const Icon(
+//                 Icons.security,
+//                 size: 80,
+//                 color: Colors.blue,
+//               ),
+//               const SizedBox(height: 24),
+//               const Text(
+//                 'Permissions Required',
+//                 style: TextStyle(
+//                   fontSize: 28,
+//                   fontWeight: FontWeight.bold,
+//                 ),
+//               ),
+//               const SizedBox(height: 16),
+//               const Text(
+//                 'CiviX needs the following permissions to function properly:',
+//                 textAlign: TextAlign.center,
+//                 style: TextStyle(fontSize: 16),
+//               ),
+//               const SizedBox(height: 32),
+//               _PermissionItem(
+//                 icon: Icons.location_on,
+//                 title: 'Location',
+//                 description: 'To tag complaint locations (Required)',
+//                 granted: locationGranted,
+//                 required: true,
+//               ),
+//               const SizedBox(height: 12),
+//               _PermissionItem(
+//                 icon: Icons.camera_alt,
+//                 title: 'Camera',
+//                 description: 'To take photos of complaints',
+//                 granted: cameraGranted,
+//               ),
+//               const SizedBox(height: 12),
+//               _PermissionItem(
+//                 icon: Icons.mic,
+//                 title: 'Microphone',
+//                 description: 'To record audio descriptions',
+//                 granted: micGranted,
+//               ),
+//               const SizedBox(height: 32),
+//               if (!locationGranted)
+//                 ElevatedButton(
+//                   onPressed: _requestPermissions,
+//                   style: ElevatedButton.styleFrom(
+//                     padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+//                     minimumSize: const Size(double.infinity, 56),
+//                   ),
+//                   child: const Text(
+//                     'Grant Permissions',
+//                     style: TextStyle(fontSize: 18),
+//                   ),
+//                 )
+//               else
+//                 ElevatedButton(
+//                   onPressed: _navigateToApp,
+//                   style: ElevatedButton.styleFrom(
+//                     padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+//                     backgroundColor: Colors.green,
+//                     minimumSize: const Size(double.infinity, 56),
+//                   ),
+//                   child: const Text(
+//                     'Continue to App',
+//                     style: TextStyle(fontSize: 18),
+//                   ),
+//                 ),
+//             ],
+//           ),
+//         ),
+//       ),
+//     );
+//   }
+// }
+
+// class _PermissionItem extends StatelessWidget {
+//   final IconData icon;
+//   final String title;
+//   final String description;
+//   final bool granted;
+//   final bool required;
+
+//   const _PermissionItem({
+//     required this.icon,
+//     required this.title,
+//     required this.description,
+//     required this.granted,
+//     this.required = false,
+//   });
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return Card(
+//       elevation: 2,
+//       child: ListTile(
+//         leading: Icon(
+//           icon,
+//           color: granted ? Colors.green : Colors.orange,
+//           size: 32,
+//         ),
+//         title: Row(
+//           children: [
+//             Text(
+//               title,
+//               style: const TextStyle(fontWeight: FontWeight.bold),
+//             ),
+//             if (required) ...[
+//               const SizedBox(width: 8),
+//               const Text(
+//                 '(Required)',
+//                 style: TextStyle(
+//                   color: Colors.red,
+//                   fontSize: 12,
+//                   fontWeight: FontWeight.bold,
+//                 ),
+//               ),
+//             ],
+//           ],
+//         ),
+//         subtitle: Text(description),
+//         trailing: Icon(
+//           granted ? Icons.check_circle : Icons.cancel,
+//           color: granted ? Colors.green : Colors.red,
+//           size: 28,
+//         ),
+//       ),
+//     );
+//   }
+// }
+
 import 'package:flutter/material.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:geolocator/geolocator.dart';
 import '../services/permission_service.dart';
 import 'role_selection_screen.dart';
@@ -12,10 +364,22 @@ class PermissionScreen extends StatefulWidget {
 }
 
 class _PermissionScreenState extends State<PermissionScreen> {
+  /// 🔧 DESIGN HOLD SWITCH
+  /// true  → inspect permission UI
+  /// false → auto navigate
+  static const bool holdScreenForDesign = false;
+
   bool _isLoading = true;
   bool _gpsEnabled = false;
   Map<String, bool> _permissions = {};
   bool _hasRequested = false;
+
+  // 🎨 COLORS
+  static const Color shieldBlue = Color(0xFF2F6BFF);
+  static const Color gpsRed = Color(0xFFE53935);
+  static const Color success = Color(0xFF16A34A);
+  static const Color mutedText = Color(0xFF6B7280);
+  static const Color surface = Color(0xFFF8FAFC);
 
   @override
   void initState() {
@@ -25,35 +389,24 @@ class _PermissionScreenState extends State<PermissionScreen> {
 
   Future<void> _checkPermissions() async {
     try {
-      setState(() {
-        _isLoading = true;
-      });
+      setState(() => _isLoading = true);
 
-      // Check GPS first (most critical - app cannot start without it)
-      final locationEnabled = await Geolocator.isLocationServiceEnabled();
-      
+      final enabled = await Geolocator.isLocationServiceEnabled();
       setState(() {
-        _gpsEnabled = locationEnabled;
+        _gpsEnabled = enabled;
         _isLoading = false;
       });
 
-      if (!locationEnabled) {
-        // GPS is off - show prompt, don't proceed
-        return;
-      }
+      if (!enabled) return;
 
-      // GPS is on, now request other permissions
       if (!_hasRequested) {
         await _requestPermissions();
       }
-    } catch (e) {
-      print('Error checking permissions: $e');
+    } catch (_) {
       setState(() {
-        _isLoading = false;
-        // If GPS check fails, assume it's enabled and proceed
         _gpsEnabled = true;
+        _isLoading = false;
       });
-      // Try to request permissions anyway
       if (!_hasRequested) {
         await _requestPermissions();
       }
@@ -67,284 +420,314 @@ class _PermissionScreenState extends State<PermissionScreen> {
         _hasRequested = true;
       });
 
-      // Request all permissions
       final results = await PermissionService.requestAllPermissions();
-
       setState(() {
         _permissions = results;
         _isLoading = false;
       });
 
-      // Check if we can proceed (GPS enabled + location permission)
-      // If location permission check fails, proceed anyway (user can grant later)
-      final canProceed = (results['locationEnabled'] == true && results['location'] == true) ||
-                         (results['locationEnabled'] == true && results['location'] != false);
-      
-      if (canProceed || _gpsEnabled) {
-        // Wait a moment then navigate
-        await Future.delayed(const Duration(milliseconds: 500));
-        if (mounted) {
-          _navigateToApp();
-        }
-      }
-    } catch (e) {
-      print('Error requesting permissions: $e');
-      setState(() {
-        _isLoading = false;
-      });
-      // If permission request fails, proceed anyway after a delay
-      await Future.delayed(const Duration(seconds: 1));
-      if (mounted) {
+      if (holdScreenForDesign) return;
+      if (mounted) _navigateToApp();
+    } catch (_) {
+      setState(() => _isLoading = false);
+      if (!holdScreenForDesign && mounted) {
         _navigateToApp();
       }
     }
   }
 
   Future<void> _enableGPS() async {
-    final enabled = await Geolocator.openLocationSettings();
-    if (enabled || mounted) {
-      // Wait a moment for GPS to enable
-      await Future.delayed(const Duration(seconds: 1));
-      await _checkPermissions();
-    }
+    await Geolocator.openLocationSettings();
+    await Future.delayed(const Duration(seconds: 1));
+    await _checkPermissions();
   }
 
   void _navigateToApp() {
-    if (mounted) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
-      );
-    }
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const CircularProgressIndicator(),
-              const SizedBox(height: 20),
-              const Text('Checking permissions...'),
-            ],
-          ),
-        ),
-      );
-    }
-
-    // GPS is not enabled - BLOCK APP START
-    if (!_gpsEnabled) {
-      return Scaffold(
-        body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(
-                  Icons.location_off,
-                  size: 100,
-                  color: Colors.red,
-                ),
-                const SizedBox(height: 24),
-                const Text(
-                  'GPS Required',
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'CiviX cannot start without GPS enabled.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'GPS is required to tag complaint locations accurately. Please enable location services to continue.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 16, color: Colors.grey),
-                ),
-                const SizedBox(height: 48),
-                ElevatedButton.icon(
-                  onPressed: _enableGPS,
-                  icon: const Icon(Icons.settings, size: 24),
-                  label: const Text(
-                    'Enable GPS in Settings',
-                    style: TextStyle(fontSize: 18),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 18),
-                    backgroundColor: Colors.blue,
-                    minimumSize: const Size(double.infinity, 56),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                OutlinedButton.icon(
-                  onPressed: _checkPermissions,
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('I\'ve Enabled GPS'),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 18),
-                    minimumSize: const Size(double.infinity, 56),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    // GPS is enabled, show permission status
     final locationGranted = _permissions['location'] ?? false;
     final cameraGranted = _permissions['camera'] ?? false;
     final micGranted = _permissions['microphone'] ?? false;
 
-    // If location is not granted yet, request it
-    if (!locationGranted && !_hasRequested) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _requestPermissions();
-      });
-    }
+    return Theme(
+      data: ThemeData(
+        brightness: Brightness.light,
+        scaffoldBackgroundColor: Colors.white,
+        textTheme: ThemeData.light().textTheme.apply(
+              fontFamily: 'Poppins',
+              bodyColor: Colors.black,
+              displayColor: Colors.black,
+            ),
+      ),
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: _isLoading
+            ? const Center(
+                child: CircularProgressIndicator(color: shieldBlue),
+              )
+            : !_gpsEnabled
+                ? _buildGpsBlocked()
+                : _buildPermissionContent(
+                    locationGranted,
+                    cameraGranted,
+                    micGranted,
+                  ),
+      ),
+    );
+  }
 
-    return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(
+  /// ───────── GPS BLOCKED ─────────
+  Widget _buildGpsBlocked() {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.location_off,
+              size: 88,
+              color: gpsRed, // 🔴 RED GPS
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'GPS Required',
+              style: TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'CiviX needs location services enabled to tag complaints accurately.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 15, color: mutedText),
+            ),
+            const SizedBox(height: 36),
+            _ActionButton(
+              label: 'Enable GPS',
+              onTap: _enableGPS,
+            ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: _checkPermissions,
+              child: const Text(
+                'I’ve enabled GPS',
+                style: TextStyle(color: mutedText),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// ───────── PERMISSIONS ─────────
+  Widget _buildPermissionContent(
+    bool locationGranted,
+    bool cameraGranted,
+    bool micGranted,
+  ) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(
+          children: [
+            const Spacer(flex: 2),
+
+            Container(
+              height: 64,
+              width: 64,
+              decoration: const BoxDecoration(
+                color: surface,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
                 Icons.security,
-                size: 80,
-                color: Colors.blue,
+                size: 32,
+                color: shieldBlue, // 🔵 BLUE SHIELD
               ),
-              const SizedBox(height: 24),
-              const Text(
-                'Permissions Required',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                ),
+            ),
+
+            const SizedBox(height: 20),
+
+            const Text(
+              'Permissions Required',
+              style: TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.w600,
               ),
-              const SizedBox(height: 16),
-              const Text(
-                'CiviX needs the following permissions to function properly:',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16),
-              ),
-              const SizedBox(height: 32),
-              _PermissionItem(
-                icon: Icons.location_on,
-                title: 'Location',
-                description: 'To tag complaint locations (Required)',
-                granted: locationGranted,
-                required: true,
-              ),
-              const SizedBox(height: 12),
-              _PermissionItem(
-                icon: Icons.camera_alt,
-                title: 'Camera',
-                description: 'To take photos of complaints',
-                granted: cameraGranted,
-              ),
-              const SizedBox(height: 12),
-              _PermissionItem(
-                icon: Icons.mic,
-                title: 'Microphone',
-                description: 'To record audio descriptions',
-                granted: micGranted,
-              ),
-              const SizedBox(height: 32),
-              if (!locationGranted)
-                ElevatedButton(
-                  onPressed: _requestPermissions,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                    minimumSize: const Size(double.infinity, 56),
-                  ),
-                  child: const Text(
-                    'Grant Permissions',
-                    style: TextStyle(fontSize: 18),
-                  ),
-                )
-              else
-                ElevatedButton(
-                  onPressed: _navigateToApp,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                    backgroundColor: Colors.green,
-                    minimumSize: const Size(double.infinity, 56),
-                  ),
-                  child: const Text(
-                    'Continue to App',
-                    style: TextStyle(fontSize: 18),
-                  ),
-                ),
-            ],
-          ),
+            ),
+
+            const SizedBox(height: 10),
+
+            const Text(
+              'CiviX needs the following permissions\nto function properly',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 15, color: mutedText),
+            ),
+
+            const SizedBox(height: 28),
+
+            _PermissionTile(
+              icon: Icons.location_on,
+              title: 'Location',
+              subtitle: 'To tag complaint locations',
+              granted: locationGranted,
+              required: true,
+            ),
+            _PermissionTile(
+              icon: Icons.camera_alt,
+              title: 'Camera',
+              subtitle: 'To capture complaint photos',
+              granted: cameraGranted,
+            ),
+            _PermissionTile(
+              icon: Icons.mic,
+              title: 'Microphone',
+              subtitle: 'To record audio descriptions',
+              granted: micGranted,
+            ),
+
+            const Spacer(flex: 3),
+
+            _ActionButton(
+              label:
+                  locationGranted ? 'Continue to App' : 'Grant Permissions',
+              onTap:
+                  locationGranted ? _navigateToApp : _requestPermissions,
+            ),
+
+            const SizedBox(height: 24),
+          ],
         ),
       ),
     );
   }
 }
 
-class _PermissionItem extends StatelessWidget {
+/// ───────── PERMISSION TILE ─────────
+class _PermissionTile extends StatelessWidget {
   final IconData icon;
   final String title;
-  final String description;
+  final String subtitle;
   final bool granted;
   final bool required;
 
-  const _PermissionItem({
+  static const Color mutedText = Color(0xFF6B7280);
+  static const Color success = Color(0xFF16A34A);
+  static const Color shieldBlue = Color(0xFF2F6BFF);
+
+  const _PermissionTile({
     required this.icon,
     required this.title,
-    required this.description,
+    required this.subtitle,
     required this.granted,
     this.required = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 2,
-      child: ListTile(
-        leading: Icon(
-          icon,
-          color: granted ? Colors.green : Colors.orange,
-          size: 32,
-        ),
-        title: Row(
-          children: [
-            Text(
-              title,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            if (required) ...[
-              const SizedBox(width: 8),
-              const Text(
-                '(Required)',
-                style: TextStyle(
-                  color: Colors.red,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9FAFB),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 30,
+            color: granted ? success : shieldBlue,
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    if (required)
+                      const Padding(
+                        padding: EdgeInsets.only(left: 6),
+                        child: Text(
+                          '(Required)',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.redAccent,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
-              ),
-            ],
-          ],
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: mutedText,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Icon(
+            Icons.check_circle,
+            color: granted ? success : Colors.black26,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// ───────── CTA BUTTON ─────────
+class _ActionButton extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+
+  static const Color shieldBlue = Color(0xFF2F6BFF);
+
+  const _ActionButton({
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 56,
+      child: ElevatedButton(
+        onPressed: onTap,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: shieldBlue, // 🔵 SAME AS SHIELD
+          elevation: 6,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(30),
+          ),
         ),
-        subtitle: Text(description),
-        trailing: Icon(
-          granted ? Icons.check_circle : Icons.cancel,
-          color: granted ? Colors.green : Colors.red,
-          size: 28,
+        child: Text(
+          label,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
         ),
       ),
     );

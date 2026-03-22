@@ -101,8 +101,25 @@ flutter:
   uses-material-design: true
 
   # Assets
+
   assets:
     - .env
+    - assets/images/
+
+  fonts:
+    - family: EncodeSansSemiExpanded
+      fonts:
+        - asset: assets/fonts/EncodeSansSemiExpanded-Bold.ttf
+          weight: 700
+
+    - family: Poppins
+      fonts:
+        - asset: assets/fonts/Poppins-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Poppins-SemiBold.ttf
+          weight: 600
+      	- asset: assets/fonts/Poppins-Medium.ttf
+      	- asset: assets/fonts/Poppins-Bold.ttf
 
   # To add assets to your application, add an assets section, like this:
   # assets:
