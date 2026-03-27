@@ -2,7 +2,7 @@ const haversine = require('haversine-distance');
 const stringSimilarity = require('string-similarity');
 const pool = require('../config/database');
 
-const DUPLICATE_RADIUS_METERS = 10;
+const DUPLICATE_RADIUS_METERS = 30;
 const TEXT_SIMILARITY_THRESHOLD = 0.3;
 
 /**
@@ -15,8 +15,8 @@ const TEXT_SIMILARITY_THRESHOLD = 0.3;
     // Get bounding box (approximately 300m)
     // const latDelta = 0.0027; // ~300m
     // const lonDelta = 0.0027;
-    const latDelta = 15 / 111320;
-    const lonDelta = 15 / (111320 * Math.cos(lat * Math.PI / 180));
+    const latDelta = 50 / 111320;
+    const lonDelta = 50 / (111320 * Math.cos(lat * Math.PI / 180));
 
     const query = `
       SELECT id, user_id, guest_id, transcript,department,latitude, longitude, status, report_count
