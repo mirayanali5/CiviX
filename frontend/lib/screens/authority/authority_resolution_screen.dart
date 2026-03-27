@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../services/api_service.dart';
+import '../../utils/location_service.dart';
 import '../../utils/map_utils.dart';
 import 'authority_dashboard_screen.dart';
 
@@ -18,6 +19,7 @@ class _AuthorityResolutionScreenState extends State<AuthorityResolutionScreen> {
   final ApiService _apiService = ApiService();
   final _notesController = TextEditingController();
   final ImagePicker _imagePicker = ImagePicker();
+  static const double _maxResolutionDistanceMeters = 10.0;
 
   Map<String, dynamic>? _complaint;
   List<File> _resolutionPhotos = [];
@@ -54,12 +56,78 @@ class _AuthorityResolutionScreenState extends State<AuthorityResolutionScreen> {
   }
 
   Future<void> _pickResolutionPhoto() async {
+    final complaintLat = _parseCoordinate(_complaint?['latitude'] ?? _complaint?['gps_lat']);
+    final complaintLon = _parseCoordinate(_complaint?['longitude'] ?? _complaint?['gps_long']);
+
+    if (complaintLat == null || complaintLon == null) {
+      await _showLocationWarningDialog(
+        title: 'Complaint Location Missing',
+        message: 'This complaint does not have a valid location. Resolution photos cannot be uploaded.',
+      );
+      return;
+    }
+
+    final currentPosition = await LocationService.getCurrentLocation();
+    if (currentPosition == null) {
+      await _showLocationWarningDialog(
+        title: 'Current Location Unavailable',
+        message:
+            'Unable to fetch your current location. Please enable GPS and location permission, then try again.',
+      );
+      return;
+    }
+
+    final distanceMeters = LocationService.calculateDistance(
+      complaintLat,
+      complaintLon,
+      currentPosition.latitude,
+      currentPosition.longitude,
+    );
+
+    if (distanceMeters > _maxResolutionDistanceMeters) {
+      await _showLocationWarningDialog(
+        title: 'Outside Allowed Area',
+        message:
+            'Resolution photo was not uploaded because your current location is ${distanceMeters.toStringAsFixed(1)}m away from the complaint location. You must be within 10m to upload.',
+      );
+      return;
+    }
+
     final image = await _imagePicker.pickImage(source: ImageSource.camera);
     if (image != null) {
       setState(() {
         _resolutionPhotos.add(File(image.path));
       });
     }
+  }
+
+  double? _parseCoordinate(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value.trim());
+    return null;
+  }
+
+  Future<void> _showLocationWarningDialog({
+    required String title,
+    required String message,
+  }) async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(title),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _removePhoto(int index) {
@@ -90,6 +158,43 @@ class _AuthorityResolutionScreenState extends State<AuthorityResolutionScreen> {
     if (_resolutionPhotos.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('At least one resolution photo is required')),
+      );
+      return;
+    }
+
+    final complaintLat = _parseCoordinate(_complaint?['latitude'] ?? _complaint?['gps_lat']);
+    final complaintLon = _parseCoordinate(_complaint?['longitude'] ?? _complaint?['gps_long']);
+
+    if (complaintLat == null || complaintLon == null) {
+      await _showLocationWarningDialog(
+        title: 'Complaint Location Missing',
+        message: 'This complaint does not have a valid location. Resolution cannot be uploaded.',
+      );
+      return;
+    }
+
+    final currentPosition = await LocationService.getCurrentLocation();
+    if (currentPosition == null) {
+      await _showLocationWarningDialog(
+        title: 'Current Location Unavailable',
+        message:
+            'Unable to fetch your current location. Please enable GPS and location permission, then try again.',
+      );
+      return;
+    }
+
+    final distanceMeters = LocationService.calculateDistance(
+      complaintLat,
+      complaintLon,
+      currentPosition.latitude,
+      currentPosition.longitude,
+    );
+
+    if (distanceMeters > _maxResolutionDistanceMeters) {
+      await _showLocationWarningDialog(
+        title: 'Outside Allowed Area',
+        message:
+            'Resolution photo was not uploaded because your current location is ${distanceMeters.toStringAsFixed(1)}m away from the complaint location. You must be within 10m to upload.',
       );
       return;
     }
@@ -198,22 +303,22 @@ class _AuthorityResolutionScreenState extends State<AuthorityResolutionScreen> {
                           title: const Text('Location'),
                           subtitle: Text(
                             () {
-                              final lat = _complaint!['latitude'] ?? _complaint!['gps_lat'];
-                              final lon = _complaint!['longitude'] ?? _complaint!['gps_long'];
+                              final lat = _parseCoordinate(_complaint!['latitude'] ?? _complaint!['gps_lat']);
+                              final lon = _parseCoordinate(_complaint!['longitude'] ?? _complaint!['gps_long']);
                               if (lat != null && lon != null) {
-                                return '${(lat as num).toDouble().toStringAsFixed(6)}, ${(lon as num).toDouble().toStringAsFixed(6)}';
+                                return '${lat.toStringAsFixed(6)}, ${lon.toStringAsFixed(6)}';
                               }
                               return 'Location not available';
                             }(),
                           ),
                           trailing: const Icon(Icons.arrow_forward_ios),
                           onTap: () {
-                            final lat = _complaint!['latitude'] ?? _complaint!['gps_lat'];
-                            final lon = _complaint!['longitude'] ?? _complaint!['gps_long'];
+                            final lat = _parseCoordinate(_complaint!['latitude'] ?? _complaint!['gps_lat']);
+                            final lon = _parseCoordinate(_complaint!['longitude'] ?? _complaint!['gps_long']);
                             if (lat != null && lon != null) {
                               MapUtils.openGoogleMaps(
-                                (lat as num).toDouble(),
-                                (lon as num).toDouble(),
+                                lat,
+                                lon,
                               );
                             }
                           },

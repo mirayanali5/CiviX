@@ -82,6 +82,7 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.13.1
 
 # Dependency overrides to fix Linux compatibility issues
 # Override to compatible versions that work together
@@ -118,8 +119,15 @@ flutter:
           weight: 400
         - asset: assets/fonts/Poppins-SemiBold.ttf
           weight: 600
-      	- asset: assets/fonts/Poppins-Medium.ttf
-      	- asset: assets/fonts/Poppins-Bold.ttf
+        - asset: assets/fonts/Poppins-Medium.ttf
+        - asset: assets/fonts/Poppins-Bold.ttf
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/images/icon.png"
+  adaptive_icon_background: "#5B8FF0"   # matches your gradient blue
+  adaptive_icon_foreground: "assets/images/icon.png"  # same file, it'll crop it
 
   # To add assets to your application, add an assets section, like this:
   # assets:

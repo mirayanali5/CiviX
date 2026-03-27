@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -7,6 +8,7 @@ import 'package:image/image.dart' as img;
 import '../../services/api_service.dart';
 import '../../utils/location_service.dart';
 import 'authority_resolution_screen.dart';
+import '../../widgets/gps_required_dialog.dart';
 
 class AuthorityMapScreen extends StatefulWidget {
   const AuthorityMapScreen({super.key});
@@ -23,11 +25,41 @@ class _AuthorityMapScreenState extends State<AuthorityMapScreen> {
   List<Map<String, dynamic>> _complaints = [];
   bool _isLoading = true;
   Map<String, BitmapDescriptor> _customIcons = {};
+  Timer? _gpsPollingTimer;
+  bool _isGpsDialogOpen = false;
 
   @override
   void initState() {
     super.initState();
     _loadMap();
+    _startGpsPolling();
+  }
+
+  void _startGpsPolling() {
+    _gpsPollingTimer?.cancel();
+    _gpsPollingTimer = Timer.periodic(const Duration(seconds: 3), (timer) async {
+      if (!mounted || _isGpsDialogOpen) return;
+      final gpsEnabled = await LocationService.isLocationServiceEnabled();
+      if (!gpsEnabled) {
+        await _showGpsRequiredDialog();
+      }
+    });
+  }
+
+  Future<void> _showGpsRequiredDialog() async {
+    if (!mounted || _isGpsDialogOpen) return;
+    _isGpsDialogOpen = true;
+    try {
+      await GPSRequiredDialog.show(context);
+    } finally {
+      if (mounted) _isGpsDialogOpen = false;
+    }
+  }
+
+  @override
+  void dispose() {
+    _gpsPollingTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadMap() async {
@@ -35,41 +67,7 @@ class _AuthorityMapScreenState extends State<AuthorityMapScreen> {
       // Check GPS first
       final gpsEnabled = await LocationService.isLocationServiceEnabled();
       if (!gpsEnabled) {
-        if (mounted) {
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (context) => AlertDialog(
-              title: const Row(
-                children: [
-                  Icon(Icons.location_off, color: Colors.red),
-                  SizedBox(width: 8),
-                  Text('GPS Required'),
-                ],
-              ),
-              content: const Text(
-                'GPS must be enabled to view the map. Please enable location services.',
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton.icon(
-                  onPressed: () async {
-                    await LocationService.openLocationSettings();
-                    Navigator.of(context).pop();
-                    // Retry after opening settings
-                    await Future.delayed(const Duration(seconds: 1));
-                    _loadMap();
-                  },
-                  icon: const Icon(Icons.settings),
-                  label: const Text('Open Settings'),
-                ),
-              ],
-            ),
-          );
-        }
+        await _showGpsRequiredDialog();
         // Set default position if GPS is off
         setState(() {
           _currentPosition = Position(
@@ -110,14 +108,16 @@ class _AuthorityMapScreenState extends State<AuthorityMapScreen> {
         }
       }
 
-      final response = await _apiService.getDepartmentComplaints();
+      final response = await _apiService.getDepartmentComplaints(status: 'open');
       if (response.statusCode == 200) {
         final raw = response.data is Map ? response.data['complaints'] : null;
         final list = raw is List
             ? raw.map((e) => e is Map ? Map<String, dynamic>.from(e) : <String, dynamic>{}).toList()
             : <Map<String, dynamic>>[];
+        // Local filter as a safeguard in case the backend returns other statuses.
+        final openComplaints = list.where((c) => c['status']?.toString() == 'open').toList();
         setState(() {
-          _complaints = list;
+          _complaints = openComplaints;
           _isLoading = false;
         });
         await _updateMarkers(_complaints);

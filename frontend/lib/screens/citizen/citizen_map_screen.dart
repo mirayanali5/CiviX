@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
@@ -9,6 +10,7 @@ import 'package:image/image.dart' as img;
 import '../../providers/complaint_provider.dart';
 import 'complaint_details_screen.dart';
 import '../../utils/location_service.dart';
+import '../../widgets/gps_required_dialog.dart';
 
 class CitizenMapScreen extends StatefulWidget {
   const CitizenMapScreen({super.key});
@@ -22,11 +24,41 @@ class _CitizenMapScreenState extends State<CitizenMapScreen> {
   Position? _currentPosition;
   Set<Marker> _markers = {};
   Map<String, BitmapDescriptor> _customIcons = {};
+  Timer? _gpsPollingTimer;
+  bool _isGpsDialogOpen = false;
 
   @override
   void initState() {
     super.initState();
     _loadMap();
+    _startGpsPolling();
+  }
+
+  void _startGpsPolling() {
+    _gpsPollingTimer?.cancel();
+    _gpsPollingTimer = Timer.periodic(const Duration(seconds: 3), (timer) async {
+      if (!mounted || _isGpsDialogOpen) return;
+      final gpsEnabled = await LocationService.isLocationServiceEnabled();
+      if (!gpsEnabled) {
+        await _showGpsRequiredDialog();
+      }
+    });
+  }
+
+  Future<void> _showGpsRequiredDialog() async {
+    if (!mounted || _isGpsDialogOpen) return;
+    _isGpsDialogOpen = true;
+    try {
+      await GPSRequiredDialog.show(context);
+    } finally {
+      if (mounted) _isGpsDialogOpen = false;
+    }
+  }
+
+  @override
+  void dispose() {
+    _gpsPollingTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadMap() async {
@@ -34,28 +66,7 @@ class _CitizenMapScreenState extends State<CitizenMapScreen> {
       // Check GPS first
       final gpsEnabled = await LocationService.isLocationServiceEnabled();
       if (!gpsEnabled) {
-        if (mounted) {
-          showDialog(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: const Text('GPS Required'),
-              content: const Text('Please enable GPS to view the map.'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('OK'),
-                ),
-                ElevatedButton(
-                  onPressed: () async {
-                    await LocationService.openLocationSettings();
-                    Navigator.of(context).pop();
-                  },
-                  child: const Text('Open Settings'),
-                ),
-              ],
-            ),
-          );
-        }
+        await _showGpsRequiredDialog();
         // Set default position if GPS is off
         setState(() {
           _currentPosition = Position(
@@ -97,8 +108,10 @@ class _CitizenMapScreenState extends State<CitizenMapScreen> {
       }
 
       final provider = Provider.of<ComplaintProvider>(context, listen: false);
-      await provider.fetchComplaints();
-      await _updateMarkers(provider.complaints);
+      await provider.fetchComplaints(status: 'open');
+      // Local filter as a safeguard in case the backend returns other statuses.
+      final openComplaints = provider.complaints.where((c) => c['status']?.toString() == 'open').toList();
+      await _updateMarkers(openComplaints);
     } catch (e) {
       print('Map load error: $e');
       // Set default position on error
