@@ -18,6 +18,7 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
   final ApiService _apiService = ApiService();
   Map<String, dynamic>? _profile;
   bool _isLoading = true;
+  bool _isUpdatingAccountType = false;
 
   @override
   void initState() {
@@ -66,6 +67,54 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
   Future<bool> _checkPermission(Permission permission) async {
     final status = await permission.status;
     return status.isGranted;
+  }
+
+  bool get _isPublicAccount {
+    final v = (_profile?['account_type'] ?? 'private').toString().trim().toLowerCase();
+    return v == 'public';
+  }
+
+  Future<void> _setAccountType({required bool isPublic}) async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (!authProvider.isAuthenticated || _profile == null) return;
+
+    setState(() {
+      _isUpdatingAccountType = true;
+    });
+
+    try {
+      final target = isPublic ? 'public' : 'private';
+      final response = await _apiService.updateAccountType(accountType: target);
+      if (response.statusCode == 200 && response.data != null) {
+        setState(() {
+          _profile = response.data['user'] ?? _profile;
+        });
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not update account type. Please try again.'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not update account type: $e'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUpdatingAccountType = false;
+        });
+      }
+    }
   }
 
   @override
@@ -170,6 +219,50 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
                         ],
                       ),
                     ),
+                  if (_profile != null) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppTheme.surfaceCard : Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: isDark
+                            ? null
+                            : [
+                                BoxShadow(
+                                  color: Colors.black12,
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                )
+                              ],
+                      ),
+                      child: SwitchListTile(
+                        value: _isPublicAccount,
+                        onChanged: _isUpdatingAccountType ? null : (v) => _setAccountType(isPublic: v),
+                        title: Text(
+                          'Public account',
+                          style: TextStyle(color: textPrimary, fontWeight: FontWeight.w600),
+                        ),
+                        subtitle: Text(
+                          _isPublicAccount
+                              ? 'Your name will be visible on the dashboard.'
+                              : 'You will appear as Anonymous on the dashboard.',
+                          style: TextStyle(color: textSecondary),
+                        ),
+                        secondary: _isUpdatingAccountType
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primaryTeal),
+                              )
+                            : Icon(
+                                _isPublicAccount ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                                color: AppTheme.primaryTeal,
+                              ),
+                        activeColor: AppTheme.primaryTeal,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 24),
                   Text(
                     'Media Permissions',

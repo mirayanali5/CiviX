@@ -90,4 +90,39 @@ router.get('/profile', requireAuth, async (req, res) => {
   }
 });
 
+// Update user profile (currently supports account_type)
+router.patch('/profile', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { account_type: at, accountType } = req.body || {};
+    const account_type = at ?? accountType;
+
+    if (account_type == null) {
+      return res.status(400).json({ error: 'Nothing to update' });
+    }
+
+    const value = account_type.toString().trim().toLowerCase();
+    if (value !== 'private' && value !== 'public') {
+      return res.status(400).json({ error: 'Account type must be private or public' });
+    }
+
+    const updated = await pool.query(
+      `UPDATE profiles
+       SET account_type = $2
+       WHERE id = $1::uuid
+       RETURNING id, full_name as name, email, role, account_type, department, created_at`,
+      [userId, value]
+    );
+
+    if (updated.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ user: updated.rows[0] });
+  } catch (error) {
+    console.error('Update profile error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 module.exports = router;

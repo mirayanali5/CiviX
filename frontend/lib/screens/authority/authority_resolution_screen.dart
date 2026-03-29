@@ -19,7 +19,7 @@ class _AuthorityResolutionScreenState extends State<AuthorityResolutionScreen> {
   final ApiService _apiService = ApiService();
   final _notesController = TextEditingController();
   final ImagePicker _imagePicker = ImagePicker();
-  static const double _maxResolutionDistanceMeters = 10.0;
+  static const double _maxResolutionDistanceMeters = 30.0;
 
   Map<String, dynamic>? _complaint;
   List<File> _resolutionPhotos = [];
@@ -88,7 +88,7 @@ class _AuthorityResolutionScreenState extends State<AuthorityResolutionScreen> {
       await _showLocationWarningDialog(
         title: 'Outside Allowed Area',
         message:
-            'Resolution photo was not uploaded because your current location is ${distanceMeters.toStringAsFixed(1)}m away from the complaint location. You must be within 10m to upload.',
+            'Resolution photo was not uploaded because your current location is ${distanceMeters.toStringAsFixed(1)}m away from the complaint location. You must be within 30m to upload.',
       );
       return;
     }

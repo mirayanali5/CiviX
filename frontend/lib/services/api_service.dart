@@ -178,6 +178,12 @@ class ApiService {
     return await _dio.get('/users/profile');
   }
 
+  Future<Response> updateAccountType({required String accountType}) async {
+    return await _dio.patch('/users/profile', data: {
+      'account_type': accountType,
+    });
+  }
+
   // Authority endpoints
   Future<Response> getAuthorityDashboard() async {
     return await _dio.get('/authority/dashboard');

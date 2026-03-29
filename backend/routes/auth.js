@@ -222,8 +222,9 @@ router.post('/login/google', authenticateToken, async (req, res) => {
         email.split('@')[0] ||
         null;
 
-      // Default account_type for Google-based citizen accounts – keep it public
-      const accountType = 'public';
+      // Default account_type for Google-based citizen accounts:
+      // private unless user explicitly chooses otherwise later.
+      const accountType = 'private';
 
       const created = await pool.query(
         `INSERT INTO profiles (id, email, full_name, account_type, role, department, password)

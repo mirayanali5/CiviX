@@ -22,6 +22,7 @@ class CitizenDashboardScreen extends StatefulWidget {
 class _CitizenDashboardScreenState extends State<CitizenDashboardScreen> {
   final ApiService _apiService = ApiService();
   Map<String, dynamic>? _stats;
+  Map<String, dynamic>? _profile;
   final _searchController = TextEditingController();
   String _searchQuery = '';
   int _currentNavIndex = 0;
@@ -40,6 +41,19 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen> {
     // Load dashboard stats (requires auth - may fail if not logged in)
     if (isAuthenticated) {
       try {
+        // Load profile (used for dashboard display name)
+        try {
+          final profileRes = await _apiService.getUserProfile();
+          if (profileRes.statusCode == 200 && profileRes.data != null) {
+            setState(() {
+              _profile = profileRes.data['user'];
+            });
+          }
+        } catch (e) {
+          // Ignore profile load failures; dashboard still works
+          print('⚠️  Load profile error: $e');
+        }
+
         final response = await _apiService.getDashboardStats();
         if (response.statusCode == 200 && response.data != null) {
           setState(() {
@@ -92,16 +106,35 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const CitizenProfileScreen()),
-        );
+        ).then((_) => _loadDashboard());
         break;
     }
   }
 
+  String _dashboardDisplayName() {
+    final name = (_profile?['name'] ?? '').toString().trim();
+    final accountType = (_profile?['account_type'] ?? 'private').toString().trim().toLowerCase();
+    if (accountType == 'public' && name.isNotEmpty) return name;
+    return 'Anonymous';
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Dashboard'),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Dashboard'),
+            Text(
+              _dashboardDisplayName(),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: isDark ? AppTheme.textSecondary : Colors.grey.shade700,
+                  ),
+            ),
+          ],
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.map_outlined),
