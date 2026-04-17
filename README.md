@@ -5,7 +5,7 @@ CiviX is an AI-powered civic grievance platform designed to simplify how citizen
 
 ---
 
-## 📌 Problem  
+## 📌 Problem Statement 
 
 Urban grievance systems are often:
 - Fragmented and slow  
