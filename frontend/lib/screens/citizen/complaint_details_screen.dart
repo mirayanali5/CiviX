@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../config/app_theme.dart';
 import '../../providers/complaint_provider.dart';
 import '../../utils/map_utils.dart';
+import '../../widgets/full_screen_image_viewer.dart';
 
 class ComplaintDetailsScreen extends StatefulWidget {
   final String complaintId;
@@ -78,13 +79,9 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
                         const SizedBox(height: 8),
                         GestureDetector(
                           onTap: () {
-                            Navigator.push(
+                            FullScreenImageViewer.open(
                               context,
-                              MaterialPageRoute(
-                                builder: (_) => _FullScreenImage(
-                                  imageUrl: complaint['photo_url'] ?? complaint['image_url'],
-                                ),
-                              ),
+                              NetworkImage(complaint['photo_url'] ?? complaint['image_url']),
                             );
                           },
                           child: ClipRRect(
@@ -156,17 +153,23 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
                           if (s.isEmpty) return const SizedBox.shrink();
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 12),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: Image.network(
-                                s,
-                                height: 220,
-                                width: double.infinity,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Container(
-                                  height: 180,
-                                  color: cardBg,
-                                  child: Icon(Icons.image_not_supported, size: 48, color: textSecondary),
+                            child: GestureDetector(
+                              onTap: () => FullScreenImageViewer.open(
+                                context,
+                                NetworkImage(s),
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Image.network(
+                                  s,
+                                  height: 220,
+                                  width: double.infinity,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Container(
+                                    height: 180,
+                                    color: cardBg,
+                                    child: Icon(Icons.image_not_supported, size: 48, color: textSecondary),
+                                  ),
                                 ),
                               ),
                             ),
@@ -375,32 +378,3 @@ class _TimelineItem extends StatelessWidget {
   }
 }
 
-class _FullScreenImage extends StatelessWidget {
-  final String imageUrl;
-
-  const _FullScreenImage({required this.imageUrl});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
-      body: Center(
-        child: InteractiveViewer(
-          minScale: 0.5,
-          maxScale: 4.0,
-          child: Image.network(
-            imageUrl,
-            fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => const Center(
-              child: Icon(Icons.image_not_supported, size: 48, color: Colors.white),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}

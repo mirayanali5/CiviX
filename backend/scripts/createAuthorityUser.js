@@ -1,5 +1,3 @@
-// Script to create an authority user (plain text password in profiles.password)
-// Usage: node scripts/createAuthorityUser.js <email> <password> <department> [full_name]
 
 const { v4: uuidv4 } = require('uuid');
 const pool = require('../config/database');

@@ -1,8 +1,7 @@
 const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 
-// Get Supabase credentials from environment
-// Support both SUPABASE_SERVICE_ROLE_KEY and SUPABASE_SERVICE_KEY
+
 const supabaseUrl = process.env.SUPABASE_URL || '';
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY || '';
 

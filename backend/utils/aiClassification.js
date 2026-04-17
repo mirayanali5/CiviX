@@ -12,12 +12,6 @@ const DEPARTMENTS = [
   'GHMC Public Health / Entomology'
 ];
 
-/* ===================== KEYWORDS ===================== */
-/*
-  IMPORTANT DESIGN RULE:
-  - Keywords must indicate PRIMARY responsibility
-  - Avoid generic words like "smell" or "dirty"
-*/
 
 const KEYWORDS = {
   'GHMC Sanitation': [
@@ -52,15 +46,6 @@ const KEYWORDS = {
   ]
 };
 
-/* ===================== MAIN CLASSIFIER ===================== */
-/*
-  PRESCRIBED LOGIC:
-  - If description has ONLY ONE keyword OR multiple keywords from the SAME department
-    → assign that department directly (no API call).
-  - If description has keywords from MULTIPLE departments OR NO keywords
-    → send description to Gemini with fixed prompt to pick the most appropriate department.
-*/
-
 async function classifyDepartment(description) {
   if (!description || typeof description !== 'string') {
     return { department: 'GHMC Sanitation', problem_type: 'General' };
@@ -81,13 +66,10 @@ async function classifyDepartment(description) {
     }
   }
 
-  /* ---- STEP 2: Unique departments only (same department can match multiple keywords) ---- */
 
   const uniqueDepartments = [...new Set(matchedDepartments)];
 
-  /* ---- STEP 3: Decision ---- */
 
-  // One department (one keyword or multiple keywords of same department) → assign directly
   if (uniqueDepartments.length === 1) {
     return {
       department: uniqueDepartments[0],
@@ -95,15 +77,9 @@ async function classifyDepartment(description) {
     };
   }
 
-  // Zero or multiple different departments → Gemini analyzes and picks one
   return await classifyWithGemini(description, uniqueDepartments);
 }
 
-/* ===================== GEMINI FALLBACK ===================== */
-/*
-  candidateDepartments: when multiple keywords match, pass those departments so Gemini
-  picks only among them. When no keywords match, pass empty and we use full DEPARTMENTS list.
-*/
 
 async function classifyWithGemini(description, candidateDepartments = []) {
   const apiKey = process.env.GEMINI_API_KEY || process.env.GEMINI_KEY;

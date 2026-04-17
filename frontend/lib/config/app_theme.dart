@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 /// Use for modern appearance and clarity with separate screens for major functionality.
 class AppTheme {
   static const Color primaryTeal = Color(0xFF00D9C5);
-  static const Color primaryTealDark = Color(0xFF00B8A3);
+  static const Color primaryTealDark = Color(0xFF5FCCFF);
   static const Color statusOrange = Color(0xFFFF9F43);
   static const Color statusGreen = Color(0xFF00D26A);
   static const Color statusBlue = Color(0xFF6C9BCF);
@@ -131,7 +131,7 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: primaryTealDark,
+          backgroundColor: Color(0xFF5FCCFF),
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -140,8 +140,8 @@ class AppTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: primaryTealDark,
-          side: const BorderSide(color: primaryTealDark),
+          foregroundColor: Color(0xFF5FCCFF),
+          side: const BorderSide(color: Color(0xFF5FCCFF)),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       ),
@@ -155,7 +155,7 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: primaryTealDark, width: 1.5),
+          borderSide: const BorderSide(color: Color(0xFF5FCCFF), width: 1.5),
         ),
         hintStyle: TextStyle(color: Colors.grey.shade600),
         labelStyle: TextStyle(color: Colors.grey.shade700),

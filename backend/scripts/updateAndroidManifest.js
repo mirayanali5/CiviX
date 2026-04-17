@@ -1,5 +1,3 @@
-// Script to update AndroidManifest.xml with Google Maps API key from .env
-// This should be run before building the Flutter app
 
 const fs = require('fs');
 const path = require('path');

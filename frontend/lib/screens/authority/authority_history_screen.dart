@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import 'package:intl/intl.dart';
+import '../../widgets/full_screen_image_viewer.dart';
 
 class AuthorityHistoryScreen extends StatefulWidget {
   const AuthorityHistoryScreen({super.key});
@@ -63,6 +64,16 @@ class _AuthorityHistoryScreenState extends State<AuthorityHistoryScreen> {
                     itemCount: _resolutions.length,
                     itemBuilder: (context, index) {
                       final resolution = _resolutions[index];
+                      final afterPhotos = (resolution['images'] is List)
+                          ? (resolution['images'] as List)
+                              .map((e) => e?.toString() ?? '')
+                              .where((url) => url.isNotEmpty)
+                              .toList()
+                          : <String>[];
+                      final fallbackAfterPhoto = resolution['photo_url']?.toString() ?? '';
+                      if (afterPhotos.isEmpty && fallbackAfterPhoto.isNotEmpty) {
+                        afterPhotos.add(fallbackAfterPhoto);
+                      }
                       return Card(
                         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         child: Padding(
@@ -91,17 +102,23 @@ class _AuthorityHistoryScreenState extends State<AuthorityHistoryScreen> {
                                       style: TextStyle(fontSize: 12, color: Colors.grey),
                                     ),
                                     const SizedBox(height: 4),
-                                    Image.network(
-                                      resolution['before_photo'],
-                                      height: 150,
-                                      width: double.infinity,
-                                      fit: BoxFit.cover,
+                                    GestureDetector(
+                                      onTap: () => FullScreenImageViewer.open(
+                                        context,
+                                        NetworkImage(resolution['before_photo']),
+                                      ),
+                                      child: Image.network(
+                                        resolution['before_photo'],
+                                        height: 150,
+                                        width: double.infinity,
+                                        fit: BoxFit.cover,
+                                      ),
                                     ),
                                   ],
                                 ),
                               const SizedBox(height: 12),
                               // After Images
-                              if (resolution['photo_url'] != null)
+                              if (afterPhotos.isNotEmpty)
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
@@ -110,11 +127,22 @@ class _AuthorityHistoryScreenState extends State<AuthorityHistoryScreen> {
                                       style: TextStyle(fontSize: 12, color: Colors.grey),
                                     ),
                                     const SizedBox(height: 4),
-                                    Image.network(
-                                      resolution['photo_url'],
-                                      height: 150,
-                                      width: double.infinity,
-                                      fit: BoxFit.cover,
+                                    ...afterPhotos.map(
+                                      (photoUrl) => Padding(
+                                        padding: const EdgeInsets.only(bottom: 8),
+                                        child: GestureDetector(
+                                          onTap: () => FullScreenImageViewer.open(
+                                            context,
+                                            NetworkImage(photoUrl),
+                                          ),
+                                          child: Image.network(
+                                            photoUrl,
+                                            height: 150,
+                                            width: double.infinity,
+                                            fit: BoxFit.cover,
+                                          ),
+                                        ),
+                                      ),
                                     ),
                                   ],
                                 ),

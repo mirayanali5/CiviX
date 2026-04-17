@@ -6,6 +6,7 @@ import 'authority_resolution_screen.dart';
 import 'authority_history_screen.dart';
 import 'authority_profile_screen.dart';
 import '../../utils/map_utils.dart';
+import '../../widgets/full_screen_image_viewer.dart';
 
 class AuthorityDashboardScreen extends StatefulWidget {
   const AuthorityDashboardScreen({super.key});
@@ -320,20 +321,26 @@ class _ComplaintCard extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               if (complaint['image_url'] != null || complaint['photo_url'] != null)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.network(
-                    complaint['image_url'] ?? complaint['photo_url'],
-                    height: 150,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        height: 150,
-                        color: Colors.grey[300],
-                        child: const Icon(Icons.image_not_supported),
-                      );
-                    },
+                GestureDetector(
+                  onTap: () => FullScreenImageViewer.open(
+                    context,
+                    NetworkImage(complaint['image_url'] ?? complaint['photo_url']),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      complaint['image_url'] ?? complaint['photo_url'],
+                      height: 150,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          height: 150,
+                          color: Colors.grey[300],
+                          child: const Icon(Icons.image_not_supported),
+                        );
+                      },
+                    ),
                   ),
                 ),
               const SizedBox(height: 8),

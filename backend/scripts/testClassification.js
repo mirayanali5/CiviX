@@ -1,11 +1,3 @@
-/**
- * Verifies Gemini API and complaint classification as per prescribed logic:
- * - One keyword or same-department keywords → direct assign
- * - Multiple departments or no keywords → Gemini picks from allowed list
- *
- * Run: node scripts/testClassification.js
- * Requires: .env with GEMINI_API_KEY or GEMINI_KEY
- */
 
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 const { classifyDepartment, DEPARTMENTS } = require('../utils/aiClassification');

@@ -1,7 +1,4 @@
-/**
- * Check environment configuration
- * Run: node scripts/checkEnv.js
- */
+
 require('dotenv').config();
 const { validateEnvironment } = require('../config/validateEnv');
 

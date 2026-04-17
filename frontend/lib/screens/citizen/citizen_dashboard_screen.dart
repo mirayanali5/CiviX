@@ -11,6 +11,8 @@ import 'citizen_map_screen.dart';
 import 'citizen_profile_screen.dart';
 import 'citizen_history_screen.dart';
 import '../../utils/map_utils.dart';
+import '../../widgets/full_screen_image_viewer.dart';
+import '../../utils/location_service.dart';
 
 class CitizenDashboardScreen extends StatefulWidget {
   const CitizenDashboardScreen({super.key});
@@ -26,6 +28,9 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
   int _currentNavIndex = 0;
+  double? _currentLatitude;
+  double? _currentLongitude;
+  static const double _nearbyRadiusMeters = 5000.0;
 
   @override
   void initState() {
@@ -73,6 +78,15 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen> {
     // Load complaints (works without auth - shows public complaints)
     final complaintProvider = Provider.of<ComplaintProvider>(context, listen: false);
     await complaintProvider.fetchComplaints();
+
+    // Best effort: determine current location for nearby ordering.
+    final position = await LocationService.getCurrentLocation();
+    if (position != null && mounted) {
+      setState(() {
+        _currentLatitude = position.latitude;
+        _currentLongitude = position.longitude;
+      });
+    }
   }
 
   void _onNavTap(int index) {
@@ -282,12 +296,13 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen> {
           );
         }
 
+        final orderedComplaints = _orderedComplaints(provider.complaints);
         return ListView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          itemCount: provider.complaints.length,
+          itemCount: orderedComplaints.length,
           itemBuilder: (context, index) {
-            final complaint = provider.complaints[index];
+            final complaint = orderedComplaints[index];
             return _ComplaintCard(
               complaint: complaint,
               onTap: () {
@@ -316,6 +331,91 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen> {
         );
       },
     );
+  }
+
+  List<Map<String, dynamic>> _orderedComplaints(List<Map<String, dynamic>> complaints) {
+    final nearbyOpen = <Map<String, dynamic>>[];
+    final open = <Map<String, dynamic>>[];
+    final resolved = <Map<String, dynamic>>[];
+    final others = <Map<String, dynamic>>[];
+
+    for (final complaint in complaints) {
+      final status = (complaint['status'] ?? '').toString().toLowerCase();
+      if (status == 'open') {
+        if (_isNearbyComplaint(complaint)) {
+          nearbyOpen.add(complaint);
+        } else {
+          open.add(complaint);
+        }
+      } else if (status == 'resolved') {
+        resolved.add(complaint);
+      } else {
+        others.add(complaint);
+      }
+    }
+
+    // Nearby open first by popularity; tie-break by nearest distance.
+    nearbyOpen.sort((a, b) {
+      final upvoteDiff = _upvoteCount(b).compareTo(_upvoteCount(a));
+      if (upvoteDiff != 0) return upvoteDiff;
+      return _distanceOrMax(a).compareTo(_distanceOrMax(b));
+    });
+    // Remaining open next by popularity.
+    open.sort((a, b) => _upvoteCount(b).compareTo(_upvoteCount(a)));
+    // Resolved last (newer first).
+    resolved.sort((a, b) => _createdAtOrMin(b).compareTo(_createdAtOrMin(a)));
+
+    return [...nearbyOpen, ...open, ...resolved, ...others];
+  }
+
+  bool _isNearbyComplaint(Map<String, dynamic> complaint) {
+    if (_currentLatitude == null || _currentLongitude == null) return false;
+    final lat = _asDouble(complaint['latitude'] ?? complaint['gps_lat']);
+    final lon = _asDouble(complaint['longitude'] ?? complaint['gps_long']);
+    if (lat == null || lon == null) return false;
+    final distance = LocationService.calculateDistance(
+      _currentLatitude!,
+      _currentLongitude!,
+      lat,
+      lon,
+    );
+    return distance <= _nearbyRadiusMeters;
+  }
+
+  double _distanceOrMax(Map<String, dynamic> complaint) {
+    if (_currentLatitude == null || _currentLongitude == null) return double.maxFinite;
+    final lat = _asDouble(complaint['latitude'] ?? complaint['gps_lat']);
+    final lon = _asDouble(complaint['longitude'] ?? complaint['gps_long']);
+    if (lat == null || lon == null) return double.maxFinite;
+    return LocationService.calculateDistance(
+      _currentLatitude!,
+      _currentLongitude!,
+      lat,
+      lon,
+    );
+  }
+
+  int _upvoteCount(Map<String, dynamic> complaint) {
+    final value = complaint['upvote_count'];
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
+  }
+
+  DateTime _createdAtOrMin(Map<String, dynamic> complaint) {
+    final createdAt = complaint['created_at']?.toString();
+    if (createdAt == null || createdAt.isEmpty) {
+      return DateTime.fromMillisecondsSinceEpoch(0);
+    }
+    return DateTime.tryParse(createdAt) ?? DateTime.fromMillisecondsSinceEpoch(0);
+  }
+
+  double? _asDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+    return null;
   }
 }
 
@@ -475,18 +575,24 @@ class _ComplaintCard extends StatelessWidget {
                 if (complaint['photo_url'] != null || complaint['image_url'] != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 10),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.network(
-                        complaint['photo_url'] ?? complaint['image_url'],
-                        height: 140,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
+                    child: GestureDetector(
+                      onTap: () => FullScreenImageViewer.open(
+                        context,
+                        NetworkImage(complaint['photo_url'] ?? complaint['image_url']),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(
+                          complaint['photo_url'] ?? complaint['image_url'],
                           height: 140,
-                          color: elevatedBg,
-                          child: Icon(Icons.image_not_supported,
-                              color: textSecondary),
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            height: 140,
+                            color: elevatedBg,
+                            child: Icon(Icons.image_not_supported,
+                                color: textSecondary),
+                          ),
                         ),
                       ),
                     ),

@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../services/api_service.dart';
 import '../../utils/location_service.dart';
 import '../../utils/map_utils.dart';
+import '../../widgets/full_screen_image_viewer.dart';
 import 'authority_dashboard_screen.dart';
 
 class AuthorityResolutionScreen extends StatefulWidget {
@@ -25,6 +26,11 @@ class _AuthorityResolutionScreenState extends State<AuthorityResolutionScreen> {
   List<File> _resolutionPhotos = [];
   bool _isLoading = true;
   bool _isSubmitting = false;
+
+  bool get _canEditComplaint {
+    final status = (_complaint?['status'] ?? '').toString().toLowerCase();
+    return status == 'open';
+  }
 
   @override
   void initState() {
@@ -56,6 +62,7 @@ class _AuthorityResolutionScreenState extends State<AuthorityResolutionScreen> {
   }
 
   Future<void> _pickResolutionPhoto() async {
+    if (!_canEditComplaint) return;
     final complaintLat = _parseCoordinate(_complaint?['latitude'] ?? _complaint?['gps_lat']);
     final complaintLon = _parseCoordinate(_complaint?['longitude'] ?? _complaint?['gps_long']);
 
@@ -131,12 +138,14 @@ class _AuthorityResolutionScreenState extends State<AuthorityResolutionScreen> {
   }
 
   void _removePhoto(int index) {
+    if (!_canEditComplaint) return;
     setState(() {
       _resolutionPhotos.removeAt(index);
     });
   }
 
   Future<void> _updateStatus(String status) async {
+    if (!_canEditComplaint) return;
     try {
       await _apiService.updateComplaintStatus(widget.complaintId, status);
       await _loadComplaint();
@@ -155,6 +164,9 @@ class _AuthorityResolutionScreenState extends State<AuthorityResolutionScreen> {
   }
 
   Future<void> _submitResolution() async {
+    if (!_canEditComplaint) {
+      return;
+    }
     if (_resolutionPhotos.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('At least one resolution photo is required')),
@@ -250,20 +262,40 @@ class _AuthorityResolutionScreenState extends State<AuthorityResolutionScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      if (!_canEditComplaint)
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.blue.withOpacity(0.2)),
+                          ),
+                          child: const Text(
+                            'This complaint is resolved. You can only view details.',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      if (!_canEditComplaint) const SizedBox(height: 16),
                       // Complaint Details
                       if (_complaint!['image_url'] != null || _complaint!['photo_url'] != null)
-                        Image.network(
-                          _complaint!['image_url'] ?? _complaint!['photo_url'],
-                          height: 300,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              height: 300,
-                              color: Colors.grey[300],
-                              child: const Icon(Icons.image_not_supported),
-                            );
-                          },
+                        GestureDetector(
+                          onTap: () => FullScreenImageViewer.open(
+                            context,
+                            NetworkImage(_complaint!['image_url'] ?? _complaint!['photo_url']),
+                          ),
+                          child: Image.network(
+                            _complaint!['image_url'] ?? _complaint!['photo_url'],
+                            height: 300,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                height: 300,
+                                color: Colors.grey[300],
+                                child: const Icon(Icons.image_not_supported),
+                              );
+                            },
+                          ),
                         ),
                       const SizedBox(height: 16),
                       Text(
@@ -282,14 +314,14 @@ class _AuthorityResolutionScreenState extends State<AuthorityResolutionScreen> {
                         children: [
                           Expanded(
                             child: OutlinedButton(
-                              onPressed: () => _updateStatus('open'),
+                              onPressed: _canEditComplaint ? () => _updateStatus('open') : null,
                               child: const Text('Mark Open'),
                             ),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: ElevatedButton(
-                              onPressed: _submitResolution,
+                              onPressed: _canEditComplaint ? _submitResolution : null,
                               child: const Text('Resolve'),
                             ),
                           ),
@@ -338,24 +370,32 @@ class _AuthorityResolutionScreenState extends State<AuthorityResolutionScreen> {
                           ..._resolutionPhotos.asMap().entries.map((entry) {
                             return Stack(
                               children: [
-                                Image.file(
-                                  entry.value,
-                                  width: 100,
-                                  height: 100,
-                                  fit: BoxFit.cover,
+                                GestureDetector(
+                                  onTap: () => FullScreenImageViewer.open(
+                                    context,
+                                    FileImage(entry.value),
+                                  ),
+                                  child: Image.file(
+                                    entry.value,
+                                    width: 100,
+                                    height: 100,
+                                    fit: BoxFit.cover,
+                                  ),
                                 ),
                                 Positioned(
                                   top: 0,
                                   right: 0,
                                   child: IconButton(
                                     icon: const Icon(Icons.close, color: Colors.red),
-                                    onPressed: () => _removePhoto(entry.key),
+                                    onPressed: _canEditComplaint
+                                        ? () => _removePhoto(entry.key)
+                                        : null,
                                   ),
                                 ),
                               ],
                             );
                           }),
-                          if (_resolutionPhotos.length < 5)
+                          if (_canEditComplaint && _resolutionPhotos.length < 5)
                             InkWell(
                               onTap: _pickResolutionPhoto,
                               child: Container(
@@ -379,6 +419,7 @@ class _AuthorityResolutionScreenState extends State<AuthorityResolutionScreen> {
                       const SizedBox(height: 8),
                       TextField(
                         controller: _notesController,
+                        enabled: _canEditComplaint,
                         maxLines: 4,
                         decoration: const InputDecoration(
                           hintText: 'Add resolution notes...',
@@ -388,7 +429,7 @@ class _AuthorityResolutionScreenState extends State<AuthorityResolutionScreen> {
                       const SizedBox(height: 24),
                       // Submit Button
                       ElevatedButton(
-                        onPressed: _isSubmitting ? null : _submitResolution,
+                        onPressed: (_isSubmitting || !_canEditComplaint) ? null : _submitResolution,
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           backgroundColor: Colors.green,

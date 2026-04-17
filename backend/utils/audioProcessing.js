@@ -8,11 +8,10 @@ require('dotenv').config();
 let speechClient = null;
 let translateClient = null;
 
-// Initialize clients lazily (on first use) to avoid blocking startup
-// Support both file path and direct JSON credentials
+
 function initializeGoogleClients() {
   if (speechClient && translateClient) {
-    return; // Already initialized
+    return; 
   }
 
   try {
@@ -64,19 +63,10 @@ function initializeGoogleClients() {
   }
 }
 
-/**
- * Detect language of audio (simplified - you may want to use a more sophisticated method)
- */
 async function detectLanguage(audioBuffer) {
-  // For now, return 'en' as default
-  // In production, you might use Google Cloud Speech API's language detection
-  // or a separate language detection service
   return 'en';
 }
 
-/**
- * Transcribe audio to text
- */
 async function transcribeAudio(audioBuffer, languageCode = 'en-US') {
   initializeGoogleClients(); // Initialize on first use
   if (!speechClient) {
@@ -84,8 +74,6 @@ async function transcribeAudio(audioBuffer, languageCode = 'en-US') {
   }
 
   try {
-    // Detect audio format - Google Speech API supports: FLAC, LINEAR16, MULAW, AMR, AMR_WB, OGG_OPUS, SPEEX_WITH_HEADER_BYTE, MP3 (beta)
-    // M4A/AAC is NOT supported - mobile app records OGG Opus
     let encoding = 'OGG_OPUS';
     let sampleRate = 48000;
     
@@ -114,8 +102,6 @@ async function transcribeAudio(audioBuffer, languageCode = 'en-US') {
       alternativeLanguageCodes: ['en-US', 'hi-IN', 'te-IN'],
       enableAutomaticPunctuation: true,
       sampleRateHertz: sampleRate,
-      // OGG from Flutter record defaults to stereo (2). Must match or be unspecified.
-      // Mobile uses numChannels: 1 for mono; stereo recordings need audioChannelCount: 2
       ...(encoding === 'OGG_OPUS' && { audioChannelCount: 2 }),
     };
 
@@ -161,9 +147,7 @@ async function transcribeAudio(audioBuffer, languageCode = 'en-US') {
   }
 }
 
-/**
- * Translate text to English
- */
+
 async function translateToEnglish(text, sourceLanguage) {
   initializeGoogleClients(); // Initialize on first use
   if (!translateClient) {
@@ -182,30 +166,22 @@ async function translateToEnglish(text, sourceLanguage) {
   }
 }
 
-/**
- * Process audio: detect language, translate if needed, then transcribe
- */
+
 async function processAudio(audioBuffer) {
   try {
-    // Detect language
     const detectedLang = await detectLanguage(audioBuffer);
     
     let rawTranscript = '';
     let translatedTranscript = '';
 
     if (detectedLang === 'en' || detectedLang.startsWith('en')) {
-      // Direct transcription for English
       rawTranscript = await transcribeAudio(audioBuffer, 'en-US');
       translatedTranscript = rawTranscript; // Same for English
     } else {
-      // For non-English: Translate first, then transcribe
-      // Note: This is a simplified flow. In practice, you might transcribe first
-      // then translate the transcript, or use a different approach
+
       
-      // Transcribe in original language
       rawTranscript = await transcribeAudio(audioBuffer, `${detectedLang}-${detectedLang.toUpperCase()}`);
       
-      // Translate to English
       translatedTranscript = await translateToEnglish(rawTranscript, detectedLang);
     }
 

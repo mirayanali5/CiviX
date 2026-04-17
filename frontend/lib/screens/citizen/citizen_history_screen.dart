@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../config/app_theme.dart';
 import '../../providers/complaint_provider.dart';
 import '../../utils/map_utils.dart';
+import '../../widgets/full_screen_image_viewer.dart';
 import 'complaint_details_screen.dart';
 
 /// History / Report Archive: complaints made only by the current user.
@@ -197,18 +198,24 @@ class _HistoryComplaintCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 if (imageUrl != null && imageUrl.toString().isNotEmpty)
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      imageUrl.toString(),
-                      height: 140,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
+                  GestureDetector(
+                    onTap: () => FullScreenImageViewer.open(
+                      context,
+                      NetworkImage(imageUrl.toString()),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.network(
+                        imageUrl.toString(),
                         height: 140,
-                        color: isDark ? AppTheme.surfaceCardElevated : Colors.grey.shade300,
-                        child: Icon(Icons.image_not_supported,
-                            color: isDark ? AppTheme.textSecondary : Colors.grey),
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          height: 140,
+                          color: isDark ? AppTheme.surfaceCardElevated : Colors.grey.shade300,
+                          child: Icon(Icons.image_not_supported,
+                              color: isDark ? AppTheme.textSecondary : Colors.grey),
+                        ),
                       ),
                     ),
                   ),

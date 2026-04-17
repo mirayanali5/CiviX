@@ -134,25 +134,6 @@ router.post('/login', async (req, res) => {
   }
 });
 
-/**
- * Citizen Login with Google (Supabase Auth)
- *
- * This route is intended for clients that already have a valid Supabase
- * access token (e.g. obtained via `supabase.auth.signInWithOAuth(OAuthProvider.google)`).
- *
- * Flow (high level):
- * - Flutter app uses Supabase Auth (Google provider) to sign in and obtains a JWT access token.
- * - The app sends a POST request to /auth/login/google with `Authorization: Bearer <supabase_jwt>`.
- * - This route verifies the token (via authenticateToken), ensures the account is a citizen,
- *   upserts a row in the `profiles` table (if missing), and returns a response compatible
- *   with the existing email/password login (token + user object).
- *
- * IMPORTANT:
- * - JWT_SECRET or SUPABASE_JWT_SECRET in the backend .env MUST match the JWT secret
- *   configured in Supabase Auth so that authenticateToken can verify Supabase tokens.
- * - Google login is only allowed for citizen accounts. Authority accounts must continue
- *   to use the existing /auth/authority/login route with email/password.
- */
 router.post('/login/google', authenticateToken, async (req, res) => {
   try {
     // authenticateToken sets req.user for a valid JWT.
@@ -163,8 +144,7 @@ router.post('/login/google', authenticateToken, async (req, res) => {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    // Google / Supabase Auth is only for citizens.
-    // We will always enforce role = 'citizen' in profiles for this route.
+
 
     // First, check if a profile already exists for this Supabase user id
     const existing = await pool.query(

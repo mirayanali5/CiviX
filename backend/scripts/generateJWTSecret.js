@@ -1,7 +1,4 @@
-/**
- * Generate a secure JWT secret
- * Run: node scripts/generateJWTSecret.js
- */
+
 const crypto = require('crypto');
 
 const secret = crypto.randomBytes(32).toString('hex');

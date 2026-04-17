@@ -1,7 +1,3 @@
-/**
- * Validate that all required environment variables are set
- * Run this at server startup to catch missing configuration early
- */
 require('dotenv').config();
 
 const requiredEnvVars = [
