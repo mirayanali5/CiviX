@@ -43,15 +43,34 @@ CiviX provides a centralized and intelligent platform where users can:
 
 ## 🧠 Tech Stack  
 
-- **Frontend:** (Add your stack — e.g., React / Flutter)  
-- **Backend:** (Node.js / Django / etc.)  
-- **Database:** (MongoDB / MySQL / etc.)  
-- **AI/ML:**  
-  - Natural Language Processing (complaint classification)  
-  - Basic Computer Vision (image-based validation)  
-- **Other Integrations:**  
-  - GIS / Location Services  
-  - Speech-to-Text  
+### 📱 Frontend  
+- Flutter (Dart)  
+
+### 🖥️ Backend  
+- Node.js  
+
+### 🗄️ Database & Services  
+- Supabase (Database, Authentication, Storage)  
+
+### 🤖 AI/ML  
+- Natural Language Processing (complaint classification)  
+- Basic Computer Vision (image-based validation)  
+
+### 🌐 Integrations  
+- Google Maps API (location & GIS tracking)  
+- Speech-to-Text API  
+- Speech Translation API  
+- Gemini API  
+
+---
+
+## 💻 Software Requirements  
+
+- **Operating System:** Windows 10+, Linux, or macOS  
+- **IDE/Editors:** Visual Studio Code, Android Studio  
+- **Version Control:** Git  
+- **UI/UX Design:** Figma  
+- **API Testing:** Postman  
 
 ---
 
@@ -99,6 +118,7 @@ DOI: https://doi.org/10.56975/ijcrt.v14i3.303708
 - [Mir Ayan Ali](https://github.com/mirayanali5)  
 - [Mohammed Abdul Mugees](https://github.com/mug3es)  
 - [Md Shoaib Ahmed](https://github.com/XSHOAIB)  
+
 ---
 
 ## 📬 Feedback  
